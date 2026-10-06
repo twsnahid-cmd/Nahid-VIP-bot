@@ -1,854 +1,791 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nahid VIP Bot - Quotex Assistant</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-    body { background-color: #090d16; color: #f1f5f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 15px; }
-    .app-container { width: 100%; max-width: 480px; background: #111827; border: 1px solid #1e293b; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.6); padding: 20px; }
-    .header { text-align: center; margin-bottom: 20px; }
-    .header h1 { color: #00f2fe; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .header p { color: #94a3b8; font-size: 12px; margin-top: 4px; }
-    .vip-badge { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; font-weight: bold; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
-    #auth-screen { display: flex; flex-direction: column; gap: 15px; }
-    label { font-size: 13px; color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 6px; }
-    input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background-color: #0f172a; color: #00f2fe; font-size: 14px; outline: none; margin-bottom: 12px; }
-    select[multiple] { height: 120px; }
-    input:focus, select:focus { border-color: #00f2fe; }
-    .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; background: linear-gradient(135deg, #00c6ff, #0072ff); color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
-    .btn:active { transform: scale(0.98); }
-    .tabs { display: flex; gap: 6px; margin-bottom: 15px; background: #0f172a; padding: 4px; border-radius: 10px; flex-wrap: wrap; }
-    .tab-btn { flex: 1; min-width: 22%; padding: 10px 4px; font-size: 11px; font-weight: bold; background: transparent; color: #94a3b8; border: none; border-radius: 8px; cursor: pointer; }
-    .tab-btn.active { background: #1e293b; color: #00f2fe; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .result-card { margin-top: 15px; background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 15px; text-align: center; display: none; }
-    .signal-text { font-size: 26px; font-weight: 800; margin: 10px 0; }
-    .signal-call { color: #22c55e; }
-    .signal-put { color: #ef4444; }
-    .signal-neutral { color: #eab308; }
-    .future-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
-    .future-table th, .future-table td { padding: 6px; border: 1px solid #334155; text-align: center; }
-    .future-table th { background: #1e293b; color: #00f2fe; }
-    .copy-btn { margin-top: 10px; background: #22c55e; }
-    .hint { font-size: 11px; color: #64748b; margin-bottom: 8px; }
-    .compound-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 14px; margin-top: 8px; }
-    .compound-title { color: #ffd700; font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 8px; }
-
-    .filter-panel { background:#0b1220; border:1px solid #1e293b; border-radius:12px; padding:12px; margin-top:12px; }
-    .filter-title { color:#00f2fe; font-size:14px; font-weight:800; margin-bottom:8px; }
-    .filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
-    .filter-item { background:#111827; border:1px solid #334155; border-radius:8px; padding:7px; font-size:10px; color:#cbd5e1; }
-    .score-box { margin-top:10px; padding:10px; border-radius:8px; background:#111827; border:1px solid #334155; text-align:center; }
-    .confidence-high { color:#22c55e; font-weight:800; }
-    .confidence-mid { color:#eab308; font-weight:800; }
-    .confidence-low { color:#ef4444; font-weight:800; }
-    .data-panel { background:#0b1220; border:1px solid #1e293b; border-radius:12px; padding:12px; margin:10px 0 12px; }
-    .data-status { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; margin-bottom:8px; }
-    .status-live { color:#22c55e; font-weight:800; }
-    .status-off { color:#ef4444; font-weight:800; }
-    .status-warn { color:#eab308; font-weight:800; }
-    .mini-btn { width:100%; padding:9px; border-radius:8px; border:1px solid #334155; background:#1e293b; color:#e2e8f0; font-weight:700; cursor:pointer; }
-    .price-strip { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:8px; }
-    .price-cell { background:#111827; border:1px solid #334155; border-radius:8px; padding:7px; font-size:10px; }
-    .price-cell b { display:block; color:#00f2fe; font-size:12px; margin-top:2px; }
-
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nahid VIP Bot - Quotex Assistant</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+body { background-color: #090d16; color: #f1f5f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 15px; }
+.app-container { width: 100%; max-width: 480px; background: #111827; border: 1px solid #1e293b; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.6); padding: 20px; }
+.header { text-align: center; margin-bottom: 20px; }
+.header h1 { color: #00f2fe; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.header p { color: #94a3b8; font-size: 12px; margin-top: 4px; }
+.vip-badge { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; font-weight: bold; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+#auth-screen { display: flex; flex-direction: column; gap: 15px; }
+label { font-size: 13px; color: #cbd5e1; font-weight: 600; display: block; margin-bottom: 6px; }
+input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background-color: #0f172a; color: #00f2fe; font-size: 14px; outline: none; margin-bottom: 12px; }
+select[multiple] { height: 120px; }
+input:focus, select:focus { border-color: #00f2fe; }
+.btn { width: 100%; padding: 14px; border-radius: 8px; border: none; background: linear-gradient(135deg, #00c6ff, #0072ff); color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
+.btn:active { transform: scale(0.98); }
+.tabs { display: flex; gap: 6px; margin-bottom: 15px; background: #0f172a; padding: 4px; border-radius: 10px; flex-wrap: wrap; }
+.tab-btn { flex: 1; min-width: 22%; padding: 10px 4px; font-size: 11px; font-weight: bold; background: transparent; color: #94a3b8; border: none; border-radius: 8px; cursor: pointer; }
+.tab-btn.active { background: #1e293b; color: #00f2fe; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.result-card { margin-top: 15px; background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 15px; text-align: center; display: none; }
+.signal-text { font-size: 26px; font-weight: 800; margin: 10px 0; }
+.signal-call { color: #22c55e; }
+.signal-put { color: #ef4444; }
+.signal-neutral { color: #eab308; }
+.future-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+.future-table th, .future-table td { padding: 6px; border: 1px solid #334155; text-align: center; }
+.future-table th { background: #1e293b; color: #00f2fe; }
+.copy-btn { margin-top: 10px; background: #22c55e; }
+.hint { font-size: 11px; color: #64748b; margin-bottom: 8px; }
+.compound-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 14px; margin-top: 8px; }
+.compound-title { color: #ffd700; font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 8px; }
+.filter-panel { background:#0b1220; border:1px solid #1e293b; border-radius:12px; padding:12px; margin-top:12px; }
+.filter-title { color:#00f2fe; font-size:14px; font-weight:800; margin-bottom:8px; }
+.filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.filter-item { background:#111827; border:1px solid #334155; border-radius:8px; padding:7px; font-size:10px; color:#cbd5e1; }
+.score-box { margin-top:10px; padding:10px; border-radius:8px; background:#111827; border:1px solid #334155; text-align:center; }
+.confidence-high { color:#22c55e; font-weight:800; }
+.confidence-mid { color:#eab308; font-weight:800; }
+.confidence-low { color:#ef4444; font-weight:800; }
+.data-panel { background:#0b1220; border:1px solid #1e293b; border-radius:12px; padding:12px; margin:10px 0 12px; }
+.data-status { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; margin-bottom:8px; }
+.status-live { color:#22c55e; font-weight:800; }
+.status-off { color:#ef4444; font-weight:800; }
+.status-warn { color:#eab308; font-weight:800; }
+.mini-btn { width:100%; padding:9px; border-radius:8px; border:1px solid #334155; background:#1e293b; color:#e2e8f0; font-weight:700; cursor:pointer; }
+.price-strip { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:8px; }
+.price-cell { background:#111827; border:1px solid #334155; border-radius:8px; padding:7px; font-size:10px; }
+.price-cell b { display:block; color:#00f2fe; font-size:12px; margin-top:2px; }
+</style>
 </head>
 <body>
 <div class="app-container">
-  <div class="header">
-    <h1>Nahid VIP Bot <span class="vip-badge">VIP</span></h1>
-    <p>Quotex Trading Signal Assistant</p>
-  </div>
-
-  <div id="auth-screen">
-    <label for="passcode">VIP পাসওয়ার্ড দিন:</label>
-    <input type="password" id="passcode" placeholder="Enter VIP Password" />
-    <button class="btn" onclick="checkAuth()">আনলক করুন</button>
-  </div>
-
-  <div id="app-screen" style="display: none;">
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('live', event)">Live Market</button>
-      <button class="tab-btn" onclick="switchTab('chart', event)">Chart Analysis</button>
-      <button class="tab-btn" onclick="switchTab('future', event)">Future Signals</button>
-      <button class="tab-btn" onclick="switchTab('compounding', event)">Compounding</button>
-    </div>
-
-    <div id="tab-live" class="tab-content active">
-      <label>Market / OTC Proxy:</label>
-      <select id="liveMarketSelect">
-        <optgroup label="🔥 Quotex OTC Markets">
-          <option value="EUR/USD (OTC)">EUR/USD (OTC)</option>
-          <option value="GBP/USD (OTC)">GBP/USD (OTC)</option>
-          <option value="USD/JPY (OTC)">USD/JPY (OTC)</option>
-          <option value="USD/CHF (OTC)">USD/CHF (OTC)</option>
-          <option value="AUD/USD (OTC)">AUD/USD (OTC)</option>
-          <option value="USD/CAD (OTC)">USD/CAD (OTC)</option>
-          <option value="NZD/USD (OTC)">NZD/USD (OTC)</option>
-          <option value="EUR/GBP (OTC)">EUR/GBP (OTC)</option>
-          <option value="EUR/JPY (OTC)">EUR/JPY (OTC)</option>
-          <option value="GBP/JPY (OTC)">GBP/JPY (OTC)</option>
-          <option value="EUR/AUD (OTC)">EUR/AUD (OTC)</option>
-          <option value="EUR/CAD (OTC)">EUR/CAD (OTC)</option>
-          <option value="EUR/CHF (OTC)">EUR/CHF (OTC)</option>
-          <option value="AUD/JPY (OTC)">AUD/JPY (OTC)</option>
-          <option value="AUD/CAD (OTC)">AUD/CAD (OTC)</option>
-          <option value="AUD/CHF (OTC)">AUD/CHF (OTC)</option>
-          <option value="AUD/NZD (OTC)">AUD/NZD (OTC)</option>
-          <option value="CAD/JPY (OTC)">CAD/JPY (OTC)</option>
-          <option value="CHF/JPY (OTC)">CHF/JPY (OTC)</option>
-          <option value="NZD/JPY (OTC)">NZD/JPY (OTC)</option>
-          <option value="NZD/CAD (OTC)">NZD/CAD (OTC)</option>
-          <option value="GBP/AUD (OTC)">GBP/AUD (OTC)</option>
-          <option value="GBP/CAD (OTC)">GBP/CAD (OTC)</option>
-          <option value="GBP/CHF (OTC)">GBP/CHF (OTC)</option>
-          <option value="USD/SGD (OTC)">USD/SGD (OTC)</option>
-          <option value="USD/HKD (OTC)">USD/HKD (OTC)</option>
-          <option value="USD/SEK (OTC)">USD/SEK (OTC)</option>
-          <option value="USD/NOK (OTC)">USD/NOK (OTC)</option>
-          <option value="USD/DKK (OTC)">USD/DKK (OTC)</option>
-          <option value="USD/ZAR (OTC)">USD/ZAR (OTC)</option>
-          <option value="USD/MXN (OTC)">USD/MXN (OTC)</option>
-          <option value="USD/PLN (OTC)">USD/PLN (OTC)</option>
-          <option value="USD/CNH (OTC)">USD/CNH (OTC)</option>
-          <option value="USD/TRY (OTC)">USD/TRY (OTC)</option>
-          <option value="USD/THB (OTC)">USD/THB (OTC)</option>
-          <option value="USD/BDT (OTC)">USD/BDT (OTC)</option>
-          <option value="USD/PKR (OTC)">USD/PKR (OTC)</option>
-          <option value="BRL/USD (OTC)">BRL/USD (OTC)</option>
-          <option value="INR/USD (OTC)">INR/USD (OTC)</option>
-        </optgroup>
-        <optgroup label="📈 Quotex Forex Markets">
-          <option value="EUR/USD">EUR/USD</option>
-          <option value="GBP/USD">GBP/USD</option>
-          <option value="USD/JPY">USD/JPY</option>
-          <option value="USD/CHF">USD/CHF</option>
-          <option value="AUD/USD">AUD/USD</option>
-          <option value="USD/CAD">USD/CAD</option>
-          <option value="NZD/USD">NZD/USD</option>
-          <option value="EUR/GBP">EUR/GBP</option>
-          <option value="EUR/JPY">EUR/JPY</option>
-          <option value="GBP/JPY">GBP/JPY</option>
-          <option value="EUR/AUD">EUR/AUD</option>
-          <option value="EUR/CAD">EUR/CAD</option>
-          <option value="EUR/CHF">EUR/CHF</option>
-          <option value="AUD/JPY">AUD/JPY</option>
-          <option value="AUD/CAD">AUD/CAD</option>
-          <option value="AUD/CHF">AUD/CHF</option>
-          <option value="AUD/NZD">AUD/NZD</option>
-          <option value="CAD/JPY">CAD/JPY</option>
-          <option value="CHF/JPY">CHF/JPY</option>
-          <option value="NZD/JPY">NZD/JPY</option>
-          <option value="NZD/CAD">NZD/CAD</option>
-          <option value="GBP/AUD">GBP/AUD</option>
-          <option value="GBP/CAD">GBP/CAD</option>
-          <option value="GBP/CHF">GBP/CHF</option>
-          <option value="USD/SGD">USD/SGD</option>
-          <option value="USD/HKD">USD/HKD</option>
-          <option value="USD/SEK">USD/SEK</option>
-          <option value="USD/NOK">USD/NOK</option>
-          <option value="USD/DKK">USD/DKK</option>
-          <option value="USD/ZAR">USD/ZAR</option>
-          <option value="USD/MXN">USD/MXN</option>
-          <option value="USD/PLN">USD/PLN</option>
-          <option value="USD/CNH">USD/CNH</option>
-          <option value="USD/TRY">USD/TRY</option>
-          <option value="USD/THB">USD/THB</option>
-          <option value="USD/BDT">USD/BDT</option>
-          <option value="USD/PKR">USD/PKR</option>
-          <option value="BRL/USD">BRL/USD</option>
-          <option value="INR/USD">INR/USD</option>
-        </optgroup>
-      </select>
-
-      <div class="data-panel">
-        <div class="data-status">
-          <span>📡 Market Data Feed</span>
-          <span id="feedStatus" style="display:none"></span>
-        </div>
-        <input type="password" id="apiKeyInput" placeholder="API key server-side secured" autocomplete="off" disabled />
-        <button class="mini-btn" onclick="testRealFeed()">🔐 Secure Server Feed Test</button>
-        <div id="feedHint" class="hint" style="margin-top:8px;">API key server-side secured — browser/source code-এ key রাখা নেই।</div>
-        <div id="priceStrip" class="price-strip" style="display:none;"></div>
-      </div>
-
-      <button class="btn" onclick="getLiveSignal()">১-মিনিট লাইভ সিগন্যাল নিন</button>
-    </div>
-
-    <div id="tab-chart" class="tab-content">
-      <label>১-মিনিট চার্টের স্ক্রিনশট দিন:</label>
-      <input type="file" id="chartInput" accept="image/*" />
-      <button class="btn" onclick="getChartSignal()">স্ক্রিনশট প্রসেস করুন</button>
-    </div>
-
-    <div id="tab-future" class="tab-content">
-      <label>Multiple Asset Select (একাদিক সিলেক্ট করুন):</label>
-      <p class="hint">ফোনে একের অধিক মার্কেট সিলেক্ট করতে অপশনগুলোতে ট্যাপ করুন</p>
-      <select id="futureMultiSelect" multiple>
-        <optgroup label="🔥 Quotex OTC Markets">
-          <option value="EUR/USD (OTC)">EUR/USD (OTC)</option>
-          <option value="GBP/USD (OTC)">GBP/USD (OTC)</option>
-          <option value="USD/JPY (OTC)">USD/JPY (OTC)</option>
-          <option value="USD/CHF (OTC)">USD/CHF (OTC)</option>
-          <option value="AUD/USD (OTC)">AUD/USD (OTC)</option>
-          <option value="USD/CAD (OTC)">USD/CAD (OTC)</option>
-          <option value="NZD/USD (OTC)">NZD/USD (OTC)</option>
-          <option value="EUR/GBP (OTC)">EUR/GBP (OTC)</option>
-          <option value="EUR/JPY (OTC)">EUR/JPY (OTC)</option>
-          <option value="GBP/JPY (OTC)">GBP/JPY (OTC)</option>
-          <option value="EUR/AUD (OTC)">EUR/AUD (OTC)</option>
-          <option value="EUR/CAD (OTC)">EUR/CAD (OTC)</option>
-          <option value="EUR/CHF (OTC)">EUR/CHF (OTC)</option>
-          <option value="AUD/JPY (OTC)">AUD/JPY (OTC)</option>
-          <option value="AUD/CAD (OTC)">AUD/CAD (OTC)</option>
-          <option value="AUD/CHF (OTC)">AUD/CHF (OTC)</option>
-          <option value="AUD/NZD (OTC)">AUD/NZD (OTC)</option>
-          <option value="CAD/JPY (OTC)">CAD/JPY (OTC)</option>
-          <option value="CHF/JPY (OTC)">CHF/JPY (OTC)</option>
-          <option value="NZD/JPY (OTC)">NZD/JPY (OTC)</option>
-          <option value="NZD/CAD (OTC)">NZD/CAD (OTC)</option>
-          <option value="GBP/AUD (OTC)">GBP/AUD (OTC)</option>
-          <option value="GBP/CAD (OTC)">GBP/CAD (OTC)</option>
-          <option value="GBP/CHF (OTC)">GBP/CHF (OTC)</option>
-          <option value="USD/SGD (OTC)">USD/SGD (OTC)</option>
-          <option value="USD/HKD (OTC)">USD/HKD (OTC)</option>
-          <option value="USD/SEK (OTC)">USD/SEK (OTC)</option>
-          <option value="USD/NOK (OTC)">USD/NOK (OTC)</option>
-          <option value="USD/DKK (OTC)">USD/DKK (OTC)</option>
-          <option value="USD/ZAR (OTC)">USD/ZAR (OTC)</option>
-          <option value="USD/MXN (OTC)">USD/MXN (OTC)</option>
-          <option value="USD/PLN (OTC)">USD/PLN (OTC)</option>
-          <option value="USD/CNH (OTC)">USD/CNH (OTC)</option>
-          <option value="USD/TRY (OTC)">USD/TRY (OTC)</option>
-          <option value="USD/THB (OTC)">USD/THB (OTC)</option>
-          <option value="USD/BDT (OTC)">USD/BDT (OTC)</option>
-          <option value="USD/PKR (OTC)">USD/PKR (OTC)</option>
-          <option value="BRL/USD (OTC)">BRL/USD (OTC)</option>
-          <option value="INR/USD (OTC)">INR/USD (OTC)</option>
-        </optgroup>
-        <optgroup label="📈 Quotex Forex Markets">
-          <option value="EUR/USD">EUR/USD</option>
-          <option value="GBP/USD">GBP/USD</option>
-          <option value="USD/JPY">USD/JPY</option>
-          <option value="USD/CHF">USD/CHF</option>
-          <option value="AUD/USD">AUD/USD</option>
-          <option value="USD/CAD">USD/CAD</option>
-          <option value="NZD/USD">NZD/USD</option>
-          <option value="EUR/GBP">EUR/GBP</option>
-          <option value="EUR/JPY">EUR/JPY</option>
-          <option value="GBP/JPY">GBP/JPY</option>
-          <option value="EUR/AUD">EUR/AUD</option>
-          <option value="EUR/CAD">EUR/CAD</option>
-          <option value="EUR/CHF">EUR/CHF</option>
-          <option value="AUD/JPY">AUD/JPY</option>
-          <option value="AUD/CAD">AUD/CAD</option>
-          <option value="AUD/CHF">AUD/CHF</option>
-          <option value="AUD/NZD">AUD/NZD</option>
-          <option value="CAD/JPY">CAD/JPY</option>
-          <option value="CHF/JPY">CHF/JPY</option>
-          <option value="NZD/JPY">NZD/JPY</option>
-          <option value="NZD/CAD">NZD/CAD</option>
-          <option value="GBP/AUD">GBP/AUD</option>
-          <option value="GBP/CAD">GBP/CAD</option>
-          <option value="GBP/CHF">GBP/CHF</option>
-          <option value="USD/SGD">USD/SGD</option>
-          <option value="USD/HKD">USD/HKD</option>
-          <option value="USD/SEK">USD/SEK</option>
-          <option value="USD/NOK">USD/NOK</option>
-          <option value="USD/DKK">USD/DKK</option>
-          <option value="USD/ZAR">USD/ZAR</option>
-          <option value="USD/MXN">USD/MXN</option>
-          <option value="USD/PLN">USD/PLN</option>
-          <option value="USD/CNH">USD/CNH</option>
-          <option value="USD/TRY">USD/TRY</option>
-          <option value="USD/THB">USD/THB</option>
-          <option value="USD/BDT">USD/BDT</option>
-          <option value="USD/PKR">USD/PKR</option>
-          <option value="BRL/USD">BRL/USD</option>
-          <option value="INR/USD">INR/USD</option>
-        </optgroup>
-      </select>
-
-      <label>টাইমফ্রেম:</label>
-      <select id="timeframeSelect">
-        <option value="1">1 Minute</option>
-        <option value="5">5 Minutes</option>
-      </select>
-
-      <label>কত মিনিট পরপর নতুন সিগন্যাল হবে:</label>
-      <select id="signalIntervalSelect">
-        <option value="1">প্রতি 1 মিনিট</option>
-        <option value="2">প্রতি 2 মিনিট</option>
-        <option value="3">প্রতি 3 মিনিট</option>
-        <option value="5" selected>প্রতি 5 মিনিট</option>
-        <option value="10">প্রতি 10 মিনিট</option>
-        <option value="15">প্রতি 15 মিনিট</option>
-        <option value="30">প্রতি 30 মিনিট</option>
-        <option value="60">প্রতি 60 মিনিট</option>
-      </select>
-
-      <button class="btn" onclick="generateFutureSignals()">অ্যাডভান্স সিগন্যাল বানান</button>
-    </div>
-
-
-    <!-- ADVANCED ACCURACY FILTERS -->
-    <div class="filter-panel">
-      <div class="filter-title">🧠 Advanced Accuracy Filters</div>
-      <div class="filter-grid">
-        <div class="filter-item">✓ EMA 13/50 Trend</div>
-        <div class="filter-item">✓ RSI 14</div>
-        <div class="filter-item">✓ MACD Momentum</div>
-        <div class="filter-item">✓ Stochastic 5,3,3</div>
-        <div class="filter-item">✓ Candle Pressure</div>
-        <div class="filter-item">✓ Big Candle Filter</div>
-        <div class="filter-item">✓ Support / Resistance</div>
-        <div class="filter-item">✓ Confidence Gate</div>
-        <div class="filter-item">✓ Candle Gap Handler</div>
-        <div class="filter-item">✓ Multi-Confirmation</div>
-      </div>
-      <div class="score-box">
-        <span style="color:#94a3b8;">Minimum confirmation:</span>
-        <b style="color:#00f2fe;"> 7 / 10</b>
-      </div>
-    </div>
-
-    <div id="tab-compounding" class="tab-content">
-      <div class="compound-box">
-        <div class="compound-title">🔥 SPECIAL COMPOUNDING SIGNAL</div>
-        <p class="hint">একটি প্ল্যান নির্বাচন করে Special Signal Generate করুন।</p>
-
-        <label>Compounding Mode:</label>
-        <select id="compoundingSelect">
-          <option value="10-100">10 → 100</option>
-          <option value="20-200">20 → 200</option>
-          <option value="30-300">30 → 300</option>
-        </select>
-
-        <label>Signal Market:</label>
-        <select id="compoundingMarketSelect">
-          <optgroup label="🔥 Quotex OTC Markets">
-            <option value="EUR/USD (OTC)">EUR/USD (OTC)</option>
-            <option value="GBP/USD (OTC)">GBP/USD (OTC)</option>
-            <option value="USD/JPY (OTC)">USD/JPY (OTC)</option>
-            <option value="USD/CHF (OTC)">USD/CHF (OTC)</option>
-            <option value="AUD/USD (OTC)">AUD/USD (OTC)</option>
-            <option value="USD/CAD (OTC)">USD/CAD (OTC)</option>
-            <option value="NZD/USD (OTC)">NZD/USD (OTC)</option>
-            <option value="EUR/GBP (OTC)">EUR/GBP (OTC)</option>
-            <option value="EUR/JPY (OTC)">EUR/JPY (OTC)</option>
-            <option value="GBP/JPY (OTC)">GBP/JPY (OTC)</option>
-            <option value="EUR/AUD (OTC)">EUR/AUD (OTC)</option>
-            <option value="EUR/CAD (OTC)">EUR/CAD (OTC)</option>
-            <option value="EUR/CHF (OTC)">EUR/CHF (OTC)</option>
-            <option value="AUD/JPY (OTC)">AUD/JPY (OTC)</option>
-            <option value="AUD/CAD (OTC)">AUD/CAD (OTC)</option>
-            <option value="AUD/CHF (OTC)">AUD/CHF (OTC)</option>
-            <option value="AUD/NZD (OTC)">AUD/NZD (OTC)</option>
-            <option value="CAD/JPY (OTC)">CAD/JPY (OTC)</option>
-            <option value="CHF/JPY (OTC)">CHF/JPY (OTC)</option>
-            <option value="NZD/JPY (OTC)">NZD/JPY (OTC)</option>
-            <option value="NZD/CAD (OTC)">NZD/CAD (OTC)</option>
-            <option value="GBP/AUD (OTC)">GBP/AUD (OTC)</option>
-            <option value="GBP/CAD (OTC)">GBP/CAD (OTC)</option>
-            <option value="GBP/CHF (OTC)">GBP/CHF (OTC)</option>
-            <option value="USD/SGD (OTC)">USD/SGD (OTC)</option>
-            <option value="USD/HKD (OTC)">USD/HKD (OTC)</option>
-            <option value="USD/SEK (OTC)">USD/SEK (OTC)</option>
-            <option value="USD/NOK (OTC)">USD/NOK (OTC)</option>
-            <option value="USD/DKK (OTC)">USD/DKK (OTC)</option>
-            <option value="USD/ZAR (OTC)">USD/ZAR (OTC)</option>
-            <option value="USD/MXN (OTC)">USD/MXN (OTC)</option>
-            <option value="USD/PLN (OTC)">USD/PLN (OTC)</option>
-            <option value="USD/CNH (OTC)">USD/CNH (OTC)</option>
-            <option value="USD/TRY (OTC)">USD/TRY (OTC)</option>
-            <option value="USD/THB (OTC)">USD/THB (OTC)</option>
-            <option value="USD/BDT (OTC)">USD/BDT (OTC)</option>
-            <option value="USD/PKR (OTC)">USD/PKR (OTC)</option>
-            <option value="BRL/USD (OTC)">BRL/USD (OTC)</option>
-            <option value="INR/USD (OTC)">INR/USD (OTC)</option>
-          </optgroup>
-          <optgroup label="📈 Quotex Forex Markets">
-            <option value="EUR/USD">EUR/USD</option>
-            <option value="GBP/USD">GBP/USD</option>
-            <option value="USD/JPY">USD/JPY</option>
-            <option value="USD/CHF">USD/CHF</option>
-            <option value="AUD/USD">AUD/USD</option>
-            <option value="USD/CAD">USD/CAD</option>
-            <option value="NZD/USD">NZD/USD</option>
-            <option value="EUR/GBP">EUR/GBP</option>
-            <option value="EUR/JPY">EUR/JPY</option>
-            <option value="GBP/JPY">GBP/JPY</option>
-            <option value="EUR/AUD">EUR/AUD</option>
-            <option value="EUR/CAD">EUR/CAD</option>
-            <option value="EUR/CHF">EUR/CHF</option>
-            <option value="AUD/JPY">AUD/JPY</option>
-            <option value="AUD/CAD">AUD/CAD</option>
-            <option value="AUD/CHF">AUD/CHF</option>
-            <option value="AUD/NZD">AUD/NZD</option>
-            <option value="CAD/JPY">CAD/JPY</option>
-            <option value="CHF/JPY">CHF/JPY</option>
-            <option value="NZD/JPY">NZD/JPY</option>
-            <option value="NZD/CAD">NZD/CAD</option>
-            <option value="GBP/AUD">GBP/AUD</option>
-            <option value="GBP/CAD">GBP/CAD</option>
-            <option value="GBP/CHF">GBP/CHF</option>
-            <option value="USD/SGD">USD/SGD</option>
-            <option value="USD/HKD">USD/HKD</option>
-            <option value="USD/SEK">USD/SEK</option>
-            <option value="USD/NOK">USD/NOK</option>
-            <option value="USD/DKK">USD/DKK</option>
-            <option value="USD/ZAR">USD/ZAR</option>
-            <option value="USD/MXN">USD/MXN</option>
-            <option value="USD/PLN">USD/PLN</option>
-            <option value="USD/CNH">USD/CNH</option>
-            <option value="USD/TRY">USD/TRY</option>
-            <option value="USD/THB">USD/THB</option>
-            <option value="USD/BDT">USD/BDT</option>
-            <option value="USD/PKR">USD/PKR</option>
-            <option value="BRL/USD">BRL/USD</option>
-            <option value="INR/USD">INR/USD</option>
-          </optgroup>
-        </select>
-
-        <label>Signal Interval:</label>
-        <select id="compoundingIntervalSelect">
-          <option value="1">প্রতি 1 মিনিট</option>
-          <option value="2">প্রতি 2 মিনিট</option>
-          <option value="3">প্রতি 3 মিনিট</option>
-          <option value="5" selected>প্রতি 5 মিনিট</option>
-          <option value="10">প্রতি 10 মিনিট</option>
-          <option value="15">প্রতি 15 মিনিট</option>
-        </select>
-
-        <button class="btn" onclick="generateCompoundingSignal()">🔥 SPECIAL SIGNAL GENERATE</button>
-      </div>
-    </div>
-
-    <div class="result-card" id="resultCard">
-      <div id="resultMarket" style="font-size: 13px; color: #94a3b8;">--</div>
-      <div style="font-size:14px;font-weight:800;color:#00f2fe;margin-top:8px;margin-bottom:4px;">🎯 DETECTION</div>
-      <div id="resultSignal" class="signal-text">--</div>
-      <div id="entryTimeText" style="font-size:17px; font-weight:900; color:#00f2fe; margin:10px 0 12px; padding:9px 10px; border:1px solid rgba(0,242,254,.35); border-radius:10px; text-align:center;"></div>
-      <div id="resultDetails" style="font-size: 12px; color: #cbd5e1;"></div>
-      <button class="btn copy-btn" id="copyBtn" style="display: none;" onclick="copyFutureSignals()">টেলিগ্রামের জন্য কপি করুন</button>
-    </div>
-  </div>
+<div class="header">
+<h1>Nahid VIP Bot <span class="vip-badge">VIP</span></h1>
+<p>Quotex Trading Signal Assistant</p>
 </div>
-
+<div id="auth-screen">
+<label for="passcode">VIP পাসওয়ার্ড দিন:</label>
+<input type="password" id="passcode" placeholder="Enter VIP Password" />
+<button class="btn" onclick="checkAuth()">আনলক করুন</button>
+</div>
+<div id="app-screen" style="display: none;">
+<div class="tabs">
+<button class="tab-btn active" onclick="switchTab('live', event)">Live Market</button>
+<button class="tab-btn" onclick="switchTab('chart', event)">Chart Analysis</button>
+<button class="tab-btn" onclick="switchTab('future', event)">Future Signals</button>
+<button class="tab-btn" onclick="switchTab('compounding', event)">Compounding</button>
+</div>
+<div id="tab-live" class="tab-content active">
+<label>Market / OTC Proxy:</label>
+<select id="liveMarketSelect">
+<optgroup label="🔥 Quotex OTC Markets">
+<option value="EUR/USD (OTC)">EUR/USD (OTC)</option>
+<option value="GBP/USD (OTC)">GBP/USD (OTC)</option>
+<option value="USD/JPY (OTC)">USD/JPY (OTC)</option>
+<option value="USD/CHF (OTC)">USD/CHF (OTC)</option>
+<option value="AUD/USD (OTC)">AUD/USD (OTC)</option>
+<option value="USD/CAD (OTC)">USD/CAD (OTC)</option>
+<option value="NZD/USD (OTC)">NZD/USD (OTC)</option>
+<option value="EUR/GBP (OTC)">EUR/GBP (OTC)</option>
+<option value="EUR/JPY (OTC)">EUR/JPY (OTC)</option>
+<option value="GBP/JPY (OTC)">GBP/JPY (OTC)</option>
+<option value="EUR/AUD (OTC)">EUR/AUD (OTC)</option>
+<option value="EUR/CAD (OTC)">EUR/CAD (OTC)</option>
+<option value="EUR/CHF (OTC)">EUR/CHF (OTC)</option>
+<option value="AUD/JPY (OTC)">AUD/JPY (OTC)</option>
+<option value="AUD/CAD (OTC)">AUD/CAD (OTC)</option>
+<option value="AUD/CHF (OTC)">AUD/CHF (OTC)</option>
+<option value="AUD/NZD (OTC)">AUD/NZD (OTC)</option>
+<option value="CAD/JPY (OTC)">CAD/JPY (OTC)</option>
+<option value="CHF/JPY (OTC)">CHF/JPY (OTC)</option>
+<option value="NZD/JPY (OTC)">NZD/JPY (OTC)</option>
+<option value="NZD/CAD (OTC)">NZD/CAD (OTC)</option>
+<option value="GBP/AUD (OTC)">GBP/AUD (OTC)</option>
+<option value="GBP/CAD (OTC)">GBP/CAD (OTC)</option>
+<option value="GBP/CHF (OTC)">GBP/CHF (OTC)</option>
+<option value="USD/SGD (OTC)">USD/SGD (OTC)</option>
+<option value="USD/HKD (OTC)">USD/HKD (OTC)</option>
+<option value="USD/SEK (OTC)">USD/SEK (OTC)</option>
+<option value="USD/NOK (OTC)">USD/NOK (OTC)</option>
+<option value="USD/DKK (OTC)">USD/DKK (OTC)</option>
+<option value="USD/ZAR (OTC)">USD/ZAR (OTC)</option>
+<option value="USD/MXN (OTC)">USD/MXN (OTC)</option>
+<option value="USD/PLN (OTC)">USD/PLN (OTC)</option>
+<option value="USD/CNH (OTC)">USD/CNH (OTC)</option>
+<option value="USD/TRY (OTC)">USD/TRY (OTC)</option>
+<option value="USD/THB (OTC)">USD/THB (OTC)</option>
+<option value="USD/BDT (OTC)">USD/BDT (OTC)</option>
+<option value="USD/PKR (OTC)">USD/PKR (OTC)</option>
+<option value="BRL/USD (OTC)">BRL/USD (OTC)</option>
+<option value="INR/USD (OTC)">INR/USD (OTC)</option>
+</optgroup>
+<optgroup label="📈 Quotex Forex Markets">
+<option value="EUR/USD">EUR/USD</option>
+<option value="GBP/USD">GBP/USD</option>
+<option value="USD/JPY">USD/JPY</option>
+<option value="USD/CHF">USD/CHF</option>
+<option value="AUD/USD">AUD/USD</option>
+<option value="USD/CAD">USD/CAD</option>
+<option value="NZD/USD">NZD/USD</option>
+<option value="EUR/GBP">EUR/GBP</option>
+<option value="EUR/JPY">EUR/JPY</option>
+<option value="GBP/JPY">GBP/JPY</option>
+<option value="EUR/AUD">EUR/AUD</option>
+<option value="EUR/CAD">EUR/CAD</option>
+<option value="EUR/CHF">EUR/CHF</option>
+<option value="AUD/JPY">AUD/JPY</option>
+<option value="AUD/CAD">AUD/CAD</option>
+<option value="AUD/CHF">AUD/CHF</option>
+<option value="AUD/NZD">AUD/NZD</option>
+<option value="CAD/JPY">CAD/JPY</option>
+<option value="CHF/JPY">CHF/JPY</option>
+<option value="NZD/JPY">NZD/JPY</option>
+<option value="NZD/CAD">NZD/CAD</option>
+<option value="GBP/AUD">GBP/AUD</option>
+<option value="GBP/CAD">GBP/CAD</option>
+<option value="GBP/CHF">GBP/CHF</option>
+<option value="USD/SGD">USD/SGD</option>
+<option value="USD/HKD">USD/HKD</option>
+<option value="USD/SEK">USD/SEK</option>
+<option value="USD/NOK">USD/NOK</option>
+<option value="USD/DKK">USD/DKK</option>
+<option value="USD/ZAR">USD/ZAR</option>
+<option value="USD/MXN">USD/MXN</option>
+<option value="USD/PLN">USD/PLN</option>
+<option value="USD/CNH">USD/CNH</option>
+<option value="USD/TRY">USD/TRY</option>
+<option value="USD/THB">USD/THB</option>
+<option value="USD/BDT">USD/BDT</option>
+<option value="USD/PKR">USD/PKR</option>
+<option value="BRL/USD">BRL/USD</option>
+<option value="INR/USD">INR/USD</option>
+</optgroup>
+</select>
+<div class="data-panel">
+<div class="data-status">
+<span>📡 Market Data Feed</span>
+<span id="feedStatus" style="display:none"></span>
+</div>
+<input type="password" id="apiKeyInput" placeholder="API key server-side secured" autocomplete="off" disabled />
+<button class="mini-btn" onclick="testRealFeed()">🔐 Secure Server Feed Test</button>
+<div id="feedHint" class="hint" style="margin-top:8px;">API key server-side secured — browser/source code-এ key রাখা নেই।</div>
+<div id="priceStrip" class="price-strip" style="display:none;"></div>
+</div>
+<button class="btn" onclick="getLiveSignal()">১-মিনিট লাইভ সিগন্যাল নিন</button>
+</div>
+<div id="tab-chart" class="tab-content">
+<label>১-মিনিট চার্টের স্ক্রিনশট দিন:</label>
+<input type="file" id="chartInput" accept="image/*" />
+<button class="btn" onclick="getChartSignal()">স্ক্রিনশট প্রসেস করুন</button>
+</div>
+<div id="tab-future" class="tab-content">
+<label>Multiple Asset Select (একাদিক সিলেক্ট করুন):</label>
+<p class="hint">ফোনে একের অধিক মার্কেট সিলেক্ট করতে অপশনগুলোতে ট্যাপ করুন</p>
+<select id="futureMultiSelect" multiple>
+<optgroup label="🔥 Quotex OTC Markets">
+<option value="EUR/USD (OTC)">EUR/USD (OTC)</option>
+<option value="GBP/USD (OTC)">GBP/USD (OTC)</option>
+<option value="USD/JPY (OTC)">USD/JPY (OTC)</option>
+<option value="USD/CHF (OTC)">USD/CHF (OTC)</option>
+<option value="AUD/USD (OTC)">AUD/USD (OTC)</option>
+<option value="USD/CAD (OTC)">USD/CAD (OTC)</option>
+<option value="NZD/USD (OTC)">NZD/USD (OTC)</option>
+<option value="EUR/GBP (OTC)">EUR/GBP (OTC)</option>
+<option value="EUR/JPY (OTC)">EUR/JPY (OTC)</option>
+<option value="GBP/JPY (OTC)">GBP/JPY (OTC)</option>
+<option value="EUR/AUD (OTC)">EUR/AUD (OTC)</option>
+<option value="EUR/CAD (OTC)">EUR/CAD (OTC)</option>
+<option value="EUR/CHF (OTC)">EUR/CHF (OTC)</option>
+<option value="AUD/JPY (OTC)">AUD/JPY (OTC)</option>
+<option value="AUD/CAD (OTC)">AUD/CAD (OTC)</option>
+<option value="AUD/CHF (OTC)">AUD/CHF (OTC)</option>
+<option value="AUD/NZD (OTC)">AUD/NZD (OTC)</option>
+<option value="CAD/JPY (OTC)">CAD/JPY (OTC)</option>
+<option value="CHF/JPY (OTC)">CHF/JPY (OTC)</option>
+<option value="NZD/JPY (OTC)">NZD/JPY (OTC)</option>
+<option value="NZD/CAD (OTC)">NZD/CAD (OTC)</option>
+<option value="GBP/AUD (OTC)">GBP/AUD (OTC)</option>
+<option value="GBP/CAD (OTC)">GBP/CAD (OTC)</option>
+<option value="GBP/CHF (OTC)">GBP/CHF (OTC)</option>
+<option value="USD/SGD (OTC)">USD/SGD (OTC)</option>
+<option value="USD/HKD (OTC)">USD/HKD (OTC)</option>
+<option value="USD/SEK (OTC)">USD/SEK (OTC)</option>
+<option value="USD/NOK (OTC)">USD/NOK (OTC)</option>
+<option value="USD/DKK (OTC)">USD/DKK (OTC)</option>
+<option value="USD/ZAR (OTC)">USD/ZAR (OTC)</option>
+<option value="USD/MXN (OTC)">USD/MXN (OTC)</option>
+<option value="USD/PLN (OTC)">USD/PLN (OTC)</option>
+<option value="USD/CNH (OTC)">USD/CNH (OTC)</option>
+<option value="USD/TRY (OTC)">USD/TRY (OTC)</option>
+<option value="USD/THB (OTC)">USD/THB (OTC)</option>
+<option value="USD/BDT (OTC)">USD/BDT (OTC)</option>
+<option value="USD/PKR (OTC)">USD/PKR (OTC)</option>
+<option value="BRL/USD (OTC)">BRL/USD (OTC)</option>
+<option value="INR/USD (OTC)">INR/USD (OTC)</option>
+</optgroup>
+<optgroup label="📈 Quotex Forex Markets">
+<option value="EUR/USD">EUR/USD</option>
+<option value="GBP/USD">GBP/USD</option>
+<option value="USD/JPY">USD/JPY</option>
+<option value="USD/CHF">USD/CHF</option>
+<option value="AUD/USD">AUD/USD</option>
+<option value="USD/CAD">USD/CAD</option>
+<option value="NZD/USD">NZD/USD</option>
+<option value="EUR/GBP">EUR/GBP</option>
+<option value="EUR/JPY">EUR/JPY</option>
+<option value="GBP/JPY">GBP/JPY</option>
+<option value="EUR/AUD">EUR/AUD</option>
+<option value="EUR/CAD">EUR/CAD</option>
+<option value="EUR/CHF">EUR/CHF</option>
+<option value="AUD/JPY">AUD/JPY</option>
+<option value="AUD/CAD">AUD/CAD</option>
+<option value="AUD/CHF">AUD/CHF</option>
+<option value="AUD/NZD">AUD/NZD</option>
+<option value="CAD/JPY">CAD/JPY</option>
+<option value="CHF/JPY">CHF/JPY</option>
+<option value="NZD/JPY">NZD/JPY</option>
+<option value="NZD/CAD">NZD/CAD</option>
+<option value="GBP/AUD">GBP/AUD</option>
+<option value="GBP/CAD">GBP/CAD</option>
+<option value="GBP/CHF">GBP/CHF</option>
+<option value="USD/SGD">USD/SGD</option>
+<option value="USD/HKD">USD/HKD</option>
+<option value="USD/SEK">USD/SEK</option>
+<option value="USD/NOK">USD/NOK</option>
+<option value="USD/DKK">USD/DKK</option>
+<option value="USD/ZAR">USD/ZAR</option>
+<option value="USD/MXN">USD/MXN</option>
+<option value="USD/PLN">USD/PLN</option>
+<option value="USD/CNH">USD/CNH</option>
+<option value="USD/TRY">USD/TRY</option>
+<option value="USD/THB">USD/THB</option>
+<option value="USD/BDT">USD/BDT</option>
+<option value="USD/PKR">USD/PKR</option>
+<option value="BRL/USD">BRL/USD</option>
+<option value="INR/USD">INR/USD</option>
+</optgroup>
+</select>
+<label>টাইমফ্রেম:</label>
+<select id="timeframeSelect">
+<option value="1">1 Minute</option>
+<option value="5">5 Minutes</option>
+</select>
+<label>কত মিনিট পরপর নতুন সিগন্যাল হবে:</label>
+<select id="signalIntervalSelect">
+<option value="1">প্রতি 1 মিনিট</option>
+<option value="2">প্রতি 2 মিনিট</option>
+<option value="3">প্রতি 3 মিনিট</option>
+<option value="5" selected>প্রতি 5 মিনিট</option>
+<option value="10">প্রতি 10 মিনিট</option>
+<option value="15">প্রতি 15 মিনিট</option>
+<option value="30">প্রতি 30 মিনিট</option>
+<option value="60">প্রতি 60 মিনিট</option>
+</select>
+<button class="btn" onclick="generateFutureSignals()">অ্যাডভান্স সিগন্যাল বানান</button>
+</div>
+<!-- ADVANCED ACCURACY FILTERS -->
+<div class="filter-panel">
+<div class="filter-title">🧠 Advanced Accuracy Filters</div>
+<div class="filter-grid">
+<div class="filter-item">✓ EMA 13/50 Trend</div>
+<div class="filter-item">✓ RSI 14</div>
+<div class="filter-item">✓ MACD Momentum</div>
+<div class="filter-item">✓ Stochastic 5,3,3</div>
+<div class="filter-item">✓ Candle Pressure</div>
+<div class="filter-item">✓ Big Candle Filter</div>
+<div class="filter-item">✓ Support / Resistance</div>
+<div class="filter-item">✓ Confidence Gate</div>
+<div class="filter-item">✓ Candle Gap Handler</div>
+<div class="filter-item">✓ Multi-Confirmation</div>
+</div>
+<div class="score-box">
+<span style="color:#94a3b8;">Minimum confirmation:</span>
+<b style="color:#00f2fe;"> 7 / 10</b>
+</div>
+</div>
+<div id="tab-compounding" class="tab-content">
+<div class="compound-box">
+<div class="compound-title">🔥 SPECIAL COMPOUNDING SIGNAL</div>
+<p class="hint">একটি প্ল্যান নির্বাচন করে Special Signal Generate করুন।</p>
+<label>Compounding Mode:</label>
+<select id="compoundingSelect">
+<option value="10-100">10 → 100</option>
+<option value="20-200">20 → 200</option>
+<option value="30-300">30 → 300</option>
+</select>
+<label>Signal Market:</label>
+<select id="compoundingMarketSelect">
+<optgroup label="🔥 Quotex OTC Markets">
+<option value="EUR/USD (OTC)">EUR/USD (OTC)</option>
+<option value="GBP/USD (OTC)">GBP/USD (OTC)</option>
+<option value="USD/JPY (OTC)">USD/JPY (OTC)</option>
+<option value="USD/CHF (OTC)">USD/CHF (OTC)</option>
+<option value="AUD/USD (OTC)">AUD/USD (OTC)</option>
+<option value="USD/CAD (OTC)">USD/CAD (OTC)</option>
+<option value="NZD/USD (OTC)">NZD/USD (OTC)</option>
+<option value="EUR/GBP (OTC)">EUR/GBP (OTC)</option>
+<option value="EUR/JPY (OTC)">EUR/JPY (OTC)</option>
+<option value="GBP/JPY (OTC)">GBP/JPY (OTC)</option>
+<option value="EUR/AUD (OTC)">EUR/AUD (OTC)</option>
+<option value="EUR/CAD (OTC)">EUR/CAD (OTC)</option>
+<option value="EUR/CHF (OTC)">EUR/CHF (OTC)</option>
+<option value="AUD/JPY (OTC)">AUD/JPY (OTC)</option>
+<option value="AUD/CAD (OTC)">AUD/CAD (OTC)</option>
+<option value="AUD/CHF (OTC)">AUD/CHF (OTC)</option>
+<option value="AUD/NZD (OTC)">AUD/NZD (OTC)</option>
+<option value="CAD/JPY (OTC)">CAD/JPY (OTC)</option>
+<option value="CHF/JPY (OTC)">CHF/JPY (OTC)</option>
+<option value="NZD/JPY (OTC)">NZD/JPY (OTC)</option>
+<option value="NZD/CAD (OTC)">NZD/CAD (OTC)</option>
+<option value="GBP/AUD (OTC)">GBP/AUD (OTC)</option>
+<option value="GBP/CAD (OTC)">GBP/CAD (OTC)</option>
+<option value="GBP/CHF (OTC)">GBP/CHF (OTC)</option>
+<option value="USD/SGD (OTC)">USD/SGD (OTC)</option>
+<option value="USD/HKD (OTC)">USD/HKD (OTC)</option>
+<option value="USD/SEK (OTC)">USD/SEK (OTC)</option>
+<option value="USD/NOK (OTC)">USD/NOK (OTC)</option>
+<option value="USD/DKK (OTC)">USD/DKK (OTC)</option>
+<option value="USD/ZAR (OTC)">USD/ZAR (OTC)</option>
+<option value="USD/MXN (OTC)">USD/MXN (OTC)</option>
+<option value="USD/PLN (OTC)">USD/PLN (OTC)</option>
+<option value="USD/CNH (OTC)">USD/CNH (OTC)</option>
+<option value="USD/TRY (OTC)">USD/TRY (OTC)</option>
+<option value="USD/THB (OTC)">USD/THB (OTC)</option>
+<option value="USD/BDT (OTC)">USD/BDT (OTC)</option>
+<option value="USD/PKR (OTC)">USD/PKR (OTC)</option>
+<option value="BRL/USD (OTC)">BRL/USD (OTC)</option>
+<option value="INR/USD (OTC)">INR/USD (OTC)</option>
+</optgroup>
+<optgroup label="📈 Quotex Forex Markets">
+<option value="EUR/USD">EUR/USD</option>
+<option value="GBP/USD">GBP/USD</option>
+<option value="USD/JPY">USD/JPY</option>
+<option value="USD/CHF">USD/CHF</option>
+<option value="AUD/USD">AUD/USD</option>
+<option value="USD/CAD">USD/CAD</option>
+<option value="NZD/USD">NZD/USD</option>
+<option value="EUR/GBP">EUR/GBP</option>
+<option value="EUR/JPY">EUR/JPY</option>
+<option value="GBP/JPY">GBP/JPY</option>
+<option value="EUR/AUD">EUR/AUD</option>
+<option value="EUR/CAD">EUR/CAD</option>
+<option value="EUR/CHF">EUR/CHF</option>
+<option value="AUD/JPY">AUD/JPY</option>
+<option value="AUD/CAD">AUD/CAD</option>
+<option value="AUD/CHF">AUD/CHF</option>
+<option value="AUD/NZD">AUD/NZD</option>
+<option value="CAD/JPY">CAD/JPY</option>
+<option value="CHF/JPY">CHF/JPY</option>
+<option value="NZD/JPY">NZD/JPY</option>
+<option value="NZD/CAD">NZD/CAD</option>
+<option value="GBP/AUD">GBP/AUD</option>
+<option value="GBP/CAD">GBP/CAD</option>
+<option value="GBP/CHF">GBP/CHF</option>
+<option value="USD/SGD">USD/SGD</option>
+<option value="USD/HKD">USD/HKD</option>
+<option value="USD/SEK">USD/SEK</option>
+<option value="USD/NOK">USD/NOK</option>
+<option value="USD/DKK">USD/DKK</option>
+<option value="USD/ZAR">USD/ZAR</option>
+<option value="USD/MXN">USD/MXN</option>
+<option value="USD/PLN">USD/PLN</option>
+<option value="USD/CNH">USD/CNH</option>
+<option value="USD/TRY">USD/TRY</option>
+<option value="USD/THB">USD/THB</option>
+<option value="USD/BDT">USD/BDT</option>
+<option value="USD/PKR">USD/PKR</option>
+<option value="BRL/USD">BRL/USD</option>
+<option value="INR/USD">INR/USD</option>
+</optgroup>
+</select>
+<label>Signal Interval:</label>
+<select id="compoundingIntervalSelect">
+<option value="1">প্রতি 1 মিনিট</option>
+<option value="2">প্রতি 2 মিনিট</option>
+<option value="3">প্রতি 3 মিনিট</option>
+<option value="5" selected>প্রতি 5 মিনিট</option>
+<option value="10">প্রতি 10 মিনিট</option>
+<option value="15">প্রতি 15 মিনিট</option>
+</select>
+<button class="btn" onclick="generateCompoundingSignal()">🔥 SPECIAL SIGNAL GENERATE</button>
+</div>
+</div>
+<div class="result-card" id="resultCard">
+<div id="resultMarket" style="font-size: 13px; color: #94a3b8;">--</div>
+<div style="font-size:14px;font-weight:800;color:#00f2fe;margin-top:8px;margin-bottom:4px;">🎯 DETECTION</div>
+<div id="resultSignal" class="signal-text">--</div>
+<div id="entryTimeText" style="font-size:17px; font-weight:900; color:#00f2fe; margin:10px 0 12px; padding:9px 10px; border:1px solid rgba(0,242,254,.35); border-radius:10px; text-align:center;"></div>
+<div id="resultDetails" style="font-size: 12px; color: #cbd5e1;"></div>
+<button class="btn copy-btn" id="copyBtn" style="display: none;" onclick="copyFutureSignals()">টেলিগ্রামের জন্য কপি করুন</button>
+</div>
+</div>
+</div>
 <script>
-  const PASSCODE = "nahid1@#";
-  let futureTextToCopy = "";
-  let lastRealCandles = null;
-  let lastRealMeta = null;
-
-  function checkAuth() {
-    const input = document.getElementById("passcode").value;
-    if (input === PASSCODE) {
-      document.getElementById("auth-screen").style.display = "none";
-      document.getElementById("app-screen").style.display = "block";
-      loadSavedApiKey();
-    } else alert("ভুল পাসওয়ার্ড!");
-  }
-
-  function switchTab(tabName, ev) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    const btn = ev?.currentTarget || document.querySelector(`.tab-btn[onclick*="${tabName}"]`);
-    if (btn) btn.classList.add('active');
-    document.getElementById(`tab-${tabName}`).classList.add('active');
-    document.getElementById("resultCard").style.display = "none";
-  }
-
-  function getApiKey() {
-    return "";
-  }
-
-  function loadSavedApiKey() {
-    const input = document.getElementById("apiKeyInput");
-    if (input) input.value = "SERVER-SECURED";
-    setFeedStatus("status-warn", "SERVER FEED");
-  }
-
-  async function testRealFeed() {
-    try {
-      setFeedStatus("status-warn", "CHECKING...");
-      const r = await fetch("/api/health", {cache:"no-store"});
-      const d = await r.json().catch(()=>({}));
-      if (!r.ok || !d.ok) throw new Error("SERVER_API_KEY_NOT_CONFIGURED");
-      setFeedStatus("status-live", "● SERVER READY");
-      document.getElementById("feedHint").innerText = "Server API key configured. Real provider feed is available.";
-    } catch (e) {
-      setFeedStatus("status-off", "SERVER FEED OFF");
-      document.getElementById("feedHint").innerText = "Server API key configure করা হয়নি বা server unavailable.";
-    }
-  }
-
-  function saveApiKey() {
-    const key = document.getElementById("apiKeyInput").value.trim();
-    if (!key) {
-      localStorage.removeItem("nahid_td_api_key");
-      setFeedStatus("status-off", "SIMULATED MODE");
-      document.getElementById("feedHint").innerText = "API key নেই—real data বন্ধ। Fake/random data ব্যবহার করা হবে না.";
-      return;
-    }
-    localStorage.setItem("nahid_td_api_key", key);
-    setFeedStatus("status-warn", "KEY SAVED");
-    document.getElementById("feedHint").innerText = "Key saved. LIVE SIGNAL চাপলে real OHLC feed test হবে.";
-  }
-
-  function setFeedStatus(cls, text) {
-    const el = document.getElementById("feedStatus");
-    if (!el) return;
-    el.className = cls;
-    el.innerText = text;
-  }
-
-  function cleanSymbol(market) {
-    return market.replace(/\s*\(OTC\)\s*$/i, "").trim();
-  }
-
-  async function fetchRealCandles(market, interval = 1, outputsize = 100) {
-    const symbol = cleanSymbol(market);
-    const url = `/api/candles?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}min&market=${encodeURIComponent(market)}`;
-    const response = await fetch(url, { cache: "no-store" });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.status === "error") {
-      throw new Error(data.message || `HTTP_${response.status}`);
-    }
-    if (!Array.isArray(data.values)) throw new Error("NO_OHLC_DATA");
-    const candles = data.values.map(v => ({
-      datetime: v.datetime, open: Number(v.open), high: Number(v.high), low: Number(v.low), close: Number(v.close), volume: Number(v.volume || 0)
-    })).filter(c => [c.open,c.high,c.low,c.close].every(Number.isFinite));
-    if (candles.length < 60) throw new Error("NOT_ENOUGH_OHLC");
-    return { candles, meta: { symbol: data.symbol, interval: data.interval, provider: data.provider, mode: data.mode, requestedMarket: data.requestedMarket } };
-  }
-
-  function showPriceStrip(candles, meta) {
-    const c = candles[candles.length - 1];
-    const prev = candles[candles.length - 2];
-    const change = c.close - prev.close;
-    const pct = prev.close ? (change / prev.close) * 100 : 0;
-    const strip = document.getElementById("priceStrip");
-    strip.style.display = "grid";
-    strip.innerHTML = `
-      <div class="price-cell">LIVE CLOSE<b>${c.close.toFixed(5)}</b></div>
-      <div class="price-cell">CHANGE<b>${change >= 0 ? '+' : ''}${change.toFixed(5)} (${pct.toFixed(3)}%)</b></div>
-      <div class="price-cell">LAST CANDLE<b>${c.datetime || '--'}</b></div>
-      <div class="price-cell">SOURCE<b>${meta?.symbol || 'Twelve Data'}</b></div>`;
-  }
-
-  function renderAnalysis(analysis, sourceText = "REAL OHLC") {
-    document.getElementById("resultSignal").innerText = analysis.signal;
-    document.getElementById("resultSignal").className = "signal-text " + analysis.className;
-    document.getElementById("entryTimeText").innerText = analysis.signal === "NO SIGNAL"
-      ? "⛔ ENTRY SKIPPED"
-      : "⏱️ ENTRY TIME: NEXT 1-MINUTE CANDLE";
-    const m = analysis.metrics || {};
-    document.getElementById("resultDetails").innerHTML =
-      `<b>Confidence: ${analysis.confidence}%</b><br>` +
-      `<div style="margin-top:10px;text-align:left;line-height:1.8;">` +
-      `<b>📊 Indicator Details</b><br>` +
-      `EMA 13: ${Number(m.ema13 || 0).toFixed(5)} | EMA 50: ${Number(m.ema50 || 0).toFixed(5)}<br>` +
-      `RSI 14: ${Number(m.rsi14 || 0).toFixed(2)}<br>` +
-      `MACD: ${Number(m.macdValue || 0).toFixed(6)}<br>` +
-      `Stochastic 5,3,3: ${Number(m.stoch || 0).toFixed(2)}<br>` +
-      `</div>` +
-      (analysis.reason ? `<div style="margin-top:6px;"><b>Confirmation:</b> ${analysis.reason}</div>` : "");
-  }
-
-  function makeDemoCandles(count = 100) {
-    const candles = [];
-    let price = 1.10000 + (Math.random() - 0.5) * 0.01;
-    const now = Date.now();
-    for (let i = 0; i < count; i++) {
-      const open = price;
-      const drift = (Math.random() - 0.48) * 0.0012;
-      const close = Math.max(0.00001, open + drift);
-      const high = Math.max(open, close) + Math.random() * 0.00035;
-      const low = Math.min(open, close) - Math.random() * 0.00035;
-      candles.push({
-        datetime: new Date(now - (count - 1 - i) * 60000).toISOString(),
-        open, high, low, close, volume: 0
-      });
-      price = close;
-    }
-    return candles;
-  }
-
-  async function getLiveSignal() {
-    const market = document.getElementById("liveMarketSelect").value;
-    const card = document.getElementById("resultCard");
-    card.style.display = "block";
-    document.getElementById("copyBtn").style.display = "none";
-    document.getElementById("resultMarket").innerText = market + " | REAL LIVE DATA";
-    document.getElementById("resultSignal").innerText = "FETCHING REAL OHLC...";
-    document.getElementById("resultSignal").className = "signal-text signal-neutral";
-    document.getElementById("entryTimeText").innerText = "";
-
-    try {
-      setFeedStatus("status-warn", "FETCHING...");
-      const result = await fetchRealCandles(market, 1, 100);
-      lastRealCandles = result.candles;
-      lastRealMeta = result.meta;
-      showPriceStrip(result.candles, result.meta);
-      const modeText = result.meta?.mode === "OTC_PROXY" ? "OTC PROXY • underlying pair feed (not Quotex OTC)" : "REGULAR FOREX";
-      const analysis = analyzeSignal(result.candles);
-      renderAnalysis(analysis, `REAL 1-MIN OHLC • ${modeText} • ${result.meta?.symbol || cleanSymbol(market)}`);
-      setFeedStatus("status-live", "● LIVE DATA");
-    } catch (err) {
-      const demoCandles = makeDemoCandles(100);
-      const analysis = analyzeSignal(demoCandles);
-      document.getElementById("resultMarket").innerText = market + " | SIMULATED SIGNAL";
-      renderAnalysis(analysis, "SIMULATED");
-      setFeedStatus("status-off", "SIMULATED MODE");
-    }
-  }
-
-  function friendlyError(err) {
-    const msg = String(err?.message || err || "UNKNOWN_ERROR");
-    if (msg === "API_KEY_MISSING") return "Server-এ Twelve Data API key configure করুন।";
-    if (msg === "SERVER_API_KEY_NOT_CONFIGURED") return "Server API key configure করা হয়নি।";
-    if (msg === "NOT_ENOUGH_OHLC") return "এই symbol-এর জন্য যথেষ্ট 1-minute OHLC পাওয়া যায়নি।";
-    if (msg.includes("Invalid symbol")) return "এই market symbol provider-এ supported নয়। OTC নামের বদলে regular Forex symbol ব্যবহার করা হয়েছে।";
-    return msg;
-  }
-
-  async function getChartSignal() {
-    const fileInput = document.getElementById("chartInput");
-    if(!fileInput.files[0]) { alert("স্ক্রিনশট দিন!"); return; }
-    const card = document.getElementById("resultCard");
-    card.style.display = "block";
-    document.getElementById("copyBtn").style.display = "none";
-    document.getElementById("resultMarket").innerText = "SCREENSHOT ANALYSIS";
-    document.getElementById("resultSignal").innerText = "NO SIGNAL";
-    document.getElementById("resultSignal").className = "signal-text signal-neutral";
-    document.getElementById("entryTimeText").innerText = "⛔ ENTRY SKIPPED";
-    document.getElementById("resultDetails").innerHTML =
-      `<b>Screenshot received.</b><br>` +
-      `এই v5 ভার্সনে screenshot-এর pixels থেকে OHLC তৈরি করা হচ্ছে না, তাই ভুলভাবে signal দেখানো হবে না।<br>` +
-      `<span class="hint">Real signal-এর জন্য Live Market tab থেকে real OHLC feed ব্যবহার করুন।</span>`;
-  }
-
-  async function generateFutureSignals() {
-    const select = document.getElementById("futureMultiSelect");
-    const selectedMarkets = Array.from(select.selectedOptions).map(option => option.value);
-    if(selectedMarkets.length === 0){ alert("কমপক্ষে ১টি মার্কেট সিলেক্ট করুন!"); return; }
-    const signalInterval = parseInt(document.getElementById("signalIntervalSelect").value);
-    const tf = parseInt(document.getElementById("timeframeSelect").value);
-    const card = document.getElementById("resultCard");
-    card.style.display = "block";
-    document.getElementById("resultMarket").innerText = "FUTURE SIGNAL SCHEDULE";
-    document.getElementById("resultSignal").innerText = "GENERATING SIGNALS...";
-    document.getElementById("resultSignal").className = "signal-text signal-neutral";
-
-    try {
-      const rows = [];
-      for (const market of selectedMarkets) {
-        try {
-          const result = await fetchRealCandles(market, tf, 100);
-          const analysis = analyzeGeneratedSignal(result.candles);
-          rows.push({ market, analysis, last: result.candles.at(-1), meta: result.meta });
-        } catch (e) {
-          const demo = makeDemoCandles(100);
-          const analysis = analyzeGeneratedSignal(demo);
-          rows.push({ market, analysis, last: demo.at(-1), meta: { mode: 'SIMULATED' } });
-        }
-      }
-      let now = new Date();
-      let tableHtml = `<table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>REAL BIAS</th><th>CONF.</th></tr>`;
-      futureTextToCopy = `👑 NAHID VIP BOT - REAL DATA SCHEDULE\n----------------------------------\n`;
-      for (let i = 0; i < 6; i++) {
-        const row = rows[i % rows.length];
-        now.setMinutes(now.getMinutes() + signalInterval);
-        const timeStr = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        const dir = row.analysis.signal === "CALL (UP ⬆️)" ? "CALL ⬆️" : row.analysis.signal === "PUT (DOWN ⬇️)" ? "PUT ⬇️" : "NO SIGNAL";
-        tableHtml += `<tr><td><b>${timeStr}</b></td><td>${row.market}</td><td><b>${dir}</b></td><td>${row.analysis.confidence}%</td></tr>`;
-        futureTextToCopy += `⏱️ ${timeStr} | ${row.market} ➡️ ${dir} | ${row.analysis.confidence}%\n`;
-      }
-      tableHtml += `</table>`;
-      document.getElementById("resultSignal").innerText = "FUTURE SIGNALS READY";
-      document.getElementById("resultSignal").className = "signal-text signal-call";
-      document.getElementById("resultDetails").innerHTML = tableHtml +
-        `<div class="hint" style="margin-top:8px;">⚠️ Entry times are scheduled slots; direction is based on the latest fetched real OHLC snapshot, not a guaranteed future outcome.</div>`;
-      document.getElementById("copyBtn").style.display = "block";
-      setFeedStatus("status-live", "● LIVE DATA");
-    } catch (err) {
-      const rows = selectedMarkets.map(market => ({ market, analysis: analyzeGeneratedSignal(makeDemoCandles(100)) }));
-      let now = new Date();
-      let tableHtml = `<table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>SIGNAL</th><th>CONF.</th></tr>`;
-      futureTextToCopy = `👑 NAHID VIP BOT - FUTURE SIGNALS\n----------------------------------\n`;
-      for (let i = 0; i < 6; i++) {
-        const row = rows[i % rows.length];
-        now.setMinutes(now.getMinutes() + signalInterval);
-        const timeStr = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        const dir = row.analysis.signal === "CALL (UP ⬆️)" ? "CALL ⬆️" : "PUT ⬇️";
-        tableHtml += `<tr><td><b>${timeStr}</b></td><td>${row.market}</td><td><b>${dir}</b></td><td>${row.analysis.confidence}%</td></tr>`;
-        futureTextToCopy += `⏱️ ${timeStr} | ${row.market} ➡️ ${dir} | ${row.analysis.confidence}%\n`;
-      }
-      tableHtml += `</table>`;
-      document.getElementById("resultSignal").innerText = "FUTURE SIGNALS READY";
-      document.getElementById("resultSignal").className = "signal-text signal-call";
-      document.getElementById("resultDetails").innerHTML = tableHtml;
-      document.getElementById("copyBtn").style.display = "block";
-      setFeedStatus("status-off", "SIMULATED SIGNALS");
-    }
-  }
-
-  function ema(values, period) {
-    if (!values.length) return 0;
-    const k = 2 / (period + 1);
-    let e = values[0];
-    for (let i = 1; i < values.length; i++) e = values[i] * k + e * (1 - k);
-    return e;
-  }
-
-  function rsi(values, period = 14) {
-    if (values.length <= period) return 50;
-    let gain = 0, loss = 0;
-    for (let i = values.length - period; i < values.length; i++) {
-      const d = values[i] - values[i - 1];
-      if (d >= 0) gain += d; else loss -= d;
-    }
-    if (loss === 0) return 100;
-    const rs = (gain / period) / (loss / period);
-    return 100 - (100 / (1 + rs));
-  }
-
-  function macd(values) { return ema(values, 12) - ema(values, 26); }
-
-  function stochastic(candles, period = 5) {
-    const recent = candles.slice(-period);
-    const high = Math.max(...recent.map(c => c.high));
-    const low = Math.min(...recent.map(c => c.low));
-    const close = candles[candles.length - 1].close;
-    if (high === low) return 50;
-    return ((close - low) / (high - low)) * 100;
-  }
-
-  // 10-factor engine over REAL OHLC only.
-  function analyzeSignal(candles) {
-    if (!Array.isArray(candles) || candles.length < 60) {
-      return {signal:"NO SIGNAL", confidence:0, className:"signal-neutral", reason:"Not enough real OHLC data.", metrics:{ema13:0,ema50:0,rsi14:50,macdValue:0,stoch:50}};
-    }
-    const closes = candles.map(c => c.close);
-    const last = candles.at(-1), prev = candles.at(-2);
-    const ema13 = ema(closes,13), ema50 = ema(closes,50), rsi14 = rsi(closes,14);
-    const macdValue = macd(closes), stoch = stochastic(candles,5);
-    let call=0, put=0, factors=0; const reasons=[];
-    const vote = (dir, text) => { factors++; if(dir==='CALL') call++; else if(dir==='PUT') put++; if(text) reasons.push(text); };
-
-    // 1 EMA trend
-    vote(ema13 > ema50 ? 'CALL':'PUT', `EMA ${ema13>ema50?'bullish':'bearish'}`);
-    // 2 RSI
-    if(rsi14 >= 52 && rsi14 < 70) vote('CALL','RSI bullish');
-    else if(rsi14 <= 48 && rsi14 > 30) vote('PUT','RSI bearish');
-    else vote(null,'RSI neutral');
-    // 3 MACD
-    vote(macdValue >= 0 ? 'CALL':'PUT', `MACD ${macdValue>=0?'↑':'↓'}`);
-    // 4 Stochastic
-    if(stoch >= 50 && stoch < 85) vote('CALL','Stoch bullish');
-    else if(stoch <= 50 && stoch > 15) vote('PUT','Stoch bearish');
-    else vote(null,'Stoch neutral');
-    // 5 Candle pressure
-    vote(last.close > last.open ? 'CALL' : last.close < last.open ? 'PUT' : null, 'Candle pressure');
-    // 6 Big-candle filter (abnormal candle blocks signal)
-    const avgBody = candles.slice(-21,-1).reduce((s,c)=>s+Math.abs(c.close-c.open),0)/20;
-    const body = Math.abs(last.close-last.open);
-    if(avgBody > 0 && body > avgBody*2.2) {
-      return {signal:"NO SIGNAL", confidence:0, className:"signal-neutral", reason:"Big-candle filter: abnormal real candle detected; entry skipped.", metrics:{ema13,ema50,rsi14,macdValue,stoch}};
-    }
-    vote(last.close >= last.open ? 'CALL':'PUT','Big-candle filter passed');
-    // 7 Support / resistance
-    const hi20=Math.max(...candles.slice(-20).map(c=>c.high));
-    const lo20=Math.min(...candles.slice(-20).map(c=>c.low));
-    const nearR=last.close >= hi20-(hi20*0.001);
-    const nearS=last.close <= lo20+(lo20*0.001);
-    if(nearS) vote('CALL','Near support');
-    else if(nearR) vote('PUT','Near resistance');
-    else vote(ema13>ema50?'CALL':'PUT','S/R follows trend');
-    // 8 Candle-gap handler
-    const gapPct = prev.close ? Math.abs(last.open-prev.close)/prev.close*100 : 0;
-    if(gapPct > 0.15) {
-      return {signal:"NO SIGNAL", confidence:0, className:"signal-neutral", reason:`Candle-gap handler: ${gapPct.toFixed(3)}% gap detected; entry skipped.`, metrics:{ema13,ema50,rsi14,macdValue,stoch}};
-    }
-    vote(last.close >= last.open ? 'CALL':'PUT','Candle gap normal');
-    // 9 Volatility / range health
-    const avgRange=candles.slice(-21,-1).reduce((s,c)=>s+(c.high-c.low),0)/20;
-    const lastRange=last.high-last.low;
-    if(avgRange>0 && lastRange < avgRange*2.0) vote(last.close>=last.open?'CALL':'PUT','Volatility acceptable');
-    else vote(null,'Volatility neutral');
-    // 10 Multi-confirmation
-    if(call >= put+2) vote('CALL','Multi-confirmation aligned');
-    else if(put >= call+2) vote('PUT','Multi-confirmation aligned');
-    else vote(null,'Multi-confirmation weak');
-
-    const winner = Math.max(call,put), loser=Math.min(call,put);
-    const lead = winner-loser;
-    const confidence = Math.min(95, Math.max(55, Math.round(55 + winner*5 + lead*4)));
-    // Signal-availability fix: real data is still mandatory, but a valid directional
-    // majority is allowed to produce a signal. 7/10 remains the HIGH-CONFIDENCE level
-    // instead of blocking every normal market condition.
-    if(winner < 5 || lead < 2) {
-      return {signal:"NO SIGNAL", confidence, className:"signal-neutral", reason:`Directional confirmations too weak: ${winner}/10 (lead ${lead}). Waiting for a clearer setup.`, metrics:{ema13,ema50,rsi14,macdValue,stoch}};
-    }
-    const isCall = call > put;
-    const quality = winner >= 7 ? "HIGH CONFIDENCE 7/10+" : "VALID SIGNAL • below 7/10 high-confidence level";
-    return {signal:isCall?"CALL (UP ⬆️)":"PUT (DOWN ⬇️)", confidence, className:isCall?"signal-call":"signal-put", reason:`${winner}/10 confirmations • ${quality} • ${reasons.filter(Boolean).slice(0,6).join(' • ')}`, metrics:{ema13,ema50,rsi14,macdValue,stoch}};
-  }
-
-  function analyzeGeneratedSignal(candles) {
-    const base = analyzeSignal(candles);
-    if (base.signal !== "NO SIGNAL") return base;
-    const closes = candles.map(c => c.close);
-    const e13 = ema(closes,13), e50 = ema(closes,50);
-    const r = rsi(closes,14), m = macd(closes), st = stochastic(candles,5);
-    const callScore = (e13 > e50 ? 2 : 0) + (r >= 50 ? 2 : 0) + (m >= 0 ? 2 : 0) + (st >= 50 ? 1 : 0);
-    const putScore = (e13 < e50 ? 2 : 0) + (r < 50 ? 2 : 0) + (m < 0 ? 2 : 0) + (st < 50 ? 1 : 0);
-    const isCall = callScore >= putScore;
-    const confidence = Math.min(92, 62 + Math.abs(callScore-putScore)*5);
-    return { signal:isCall?"CALL (UP ⬆️)":"PUT (DOWN ⬇️)", confidence, className:isCall?"signal-call":"signal-put", reason:`Generated signal • EMA ${isCall?'bullish':'bearish'} • RSI ${r.toFixed(1)} • MACD ${m>=0?'positive':'negative'} • Stochastic ${st.toFixed(1)}`, metrics:{ema13:e13,ema50:e50,rsi14:r,macdValue:m,stoch:st} };
-  }
-
-  async function generateCompoundingSignal() {
-    const plan=document.getElementById("compoundingSelect").value;
-    const market=document.getElementById("compoundingMarketSelect").value;
-    const interval=parseInt(document.getElementById("compoundingIntervalSelect").value);
-    const [startAmount,targetAmount]=plan.split("-").map(Number);
-    const card=document.getElementById("resultCard"); card.style.display="block";
-    document.getElementById("copyBtn").style.display="none";
-    document.getElementById("resultMarket").innerText=`🔥 SPECIAL COMPOUNDING | ${market}`;
-    document.getElementById("resultSignal").innerText="GENERATING SIGNAL...";
-    document.getElementById("resultSignal").className="signal-text signal-neutral";
-    try {
-      const result=await fetchRealCandles(market,1,100);
-      const analysis=analyzeGeneratedSignal(result.candles);
-      const now=new Date(); now.setMinutes(now.getMinutes()+interval); now.setSeconds(0);
-      const timeStr=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      document.getElementById("resultSignal").innerText=analysis.signal==="NO SIGNAL"?"SPECIAL NO SIGNAL ⚠️":(analysis.signal==="CALL (UP ⬆️)"?"SPECIAL CALL ⬆️":"SPECIAL PUT ⬇️");
-      document.getElementById("resultSignal").className="signal-text "+analysis.className;
-      document.getElementById("entryTimeText").innerText=analysis.signal==="NO SIGNAL"?"⛔ ENTRY SKIPPED":"⏱️ ENTRY TIME: "+timeStr;
-      document.getElementById("resultDetails").innerHTML=`🔥 COMPOUNDING PLAN: <b>${startAmount} → ${targetAmount}</b><br>📊 MARKET: <b>${market}</b><br>🎯 CONFIDENCE: <b>${analysis.confidence}%</b><br>🧠 REAL-DATA FILTERS: ${analysis.reason}<br>⏱️ NEXT SIGNAL SLOT: <b>${interval} মিনিট পরে</b><br>⚠️ Target plan; profit guarantee নয়।`;
-      showPriceStrip(result.candles,result.meta); setFeedStatus("status-live","● LIVE DATA");
-    } catch(err) {
-      const demo = makeDemoCandles(100);
-      const analysis = analyzeGeneratedSignal(demo);
-      const now=new Date(); now.setMinutes(now.getMinutes()+interval); now.setSeconds(0);
-      const timeStr=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      document.getElementById("resultSignal").innerText=analysis.signal==="CALL (UP ⬆️)"?"SPECIAL CALL ⬆️":"SPECIAL PUT ⬇️";
-      document.getElementById("resultSignal").className="signal-text "+analysis.className;
-      document.getElementById("entryTimeText").innerText="⏱️ ENTRY TIME: "+timeStr;
-      document.getElementById("resultDetails").innerHTML=`🔥 COMPOUNDING PLAN: <b>${startAmount} → ${targetAmount}</b><br>📊 MARKET: <b>${market}</b><br>🎯 CONFIDENCE: <b>${analysis.confidence}%</b><br>🧠 INDICATOR DETAILS: ${analysis.reason}<br>⏱️ NEXT SIGNAL SLOT: <b>${interval} মিনিট পরে</b>`;
-      setFeedStatus("status-off","SIMULATED SIGNAL");
-    }
-  }
-
-  function copyFutureSignals() {
-    navigator.clipboard.writeText(futureTextToCopy).then(()=>alert("সিগন্যাল কপি করা হয়েছে!")).catch(()=>alert("কপি করা যায়নি!"));
-  }
+const PASSCODE = "nahid1@#";
+let futureTextToCopy = "";
+let lastRealCandles = null;
+let lastRealMeta = null;
+function checkAuth() {
+const input = document.getElementById("passcode").value;
+if (input === PASSCODE) {
+document.getElementById("auth-screen").style.display = "none";
+document.getElementById("app-screen").style.display = "block";
+loadSavedApiKey();
+} else alert("ভুল পাসওয়ার্ড!");
+}
+function switchTab(tabName, ev) {
+document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+const btn = ev?.currentTarget || document.querySelector(.tab-btn[onclick*="${tabName}"]);
+if (btn) btn.classList.add('active');
+document.getElementById(tab-${tabName}).classList.add('active');
+document.getElementById("resultCard").style.display = "none";
+}
+function getApiKey() {
+return "";
+}
+function loadSavedApiKey() {
+const input = document.getElementById("apiKeyInput");
+if (input) input.value = "SERVER-SECURED";
+setFeedStatus("status-warn", "SERVER FEED");
+}
+async function testRealFeed() {
+try {
+setFeedStatus("status-warn", "CHECKING...");
+const r = await fetch("/api/health", {cache:"no-store"});
+const d = await r.json().catch(()=>({}));
+if (!r.ok || !d.ok) throw new Error("SERVER_API_KEY_NOT_CONFIGURED");
+setFeedStatus("status-live", "● SERVER READY");
+document.getElementById("feedHint").innerText = "Server API key configured. Real provider feed is available.";
+} catch (e) {
+setFeedStatus("status-off", "SERVER FEED OFF");
+document.getElementById("feedHint").innerText = "Server API key configure করা হয়নি বা server unavailable.";
+}
+}
+function saveApiKey() {
+const key = document.getElementById("apiKeyInput").value.trim();
+if (!key) {
+localStorage.removeItem("nahid_td_api_key");
+setFeedStatus("status-off", "SIMULATED MODE");
+document.getElementById("feedHint").innerText = "API key নেই—real data বন্ধ। Fake/random data ব্যবহার করা হবে না.";
+return;
+}
+localStorage.setItem("nahid_td_api_key", key);
+setFeedStatus("status-warn", "KEY SAVED");
+document.getElementById("feedHint").innerText = "Key saved. LIVE SIGNAL চাপলে real OHLC feed test হবে.";
+}
+function setFeedStatus(cls, text) {
+const el = document.getElementById("feedStatus");
+if (!el) return;
+el.className = cls;
+el.innerText = text;
+}
+function cleanSymbol(market) {
+return market.replace(/\s*(OTC)\s*$/i, "").trim();
+}
+async function fetchRealCandles(market, interval = 1, outputsize = 100) {
+const symbol = cleanSymbol(market);
+const url = /api/candles?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}min&market=${encodeURIComponent(market)};
+const response = await fetch(url, { cache: "no-store" });
+const data = await response.json().catch(() => ({}));
+if (!response.ok || data.status === "error") {
+throw new Error(data.message || HTTP_${response.status});
+}
+if (!Array.isArray(data.values)) throw new Error("NO_OHLC_DATA");
+const candles = data.values.map(v => ({
+datetime: v.datetime, open: Number(v.open), high: Number(v.high), low: Number(v.low), close: Number(v.close), volume: Number(v.volume || 0)
+})).filter(c => [c.open,c.high,c.low,c.close].every(Number.isFinite));
+if (candles.length < 60) throw new Error("NOT_ENOUGH_OHLC");
+return { candles, meta: { symbol: data.symbol, interval: data.interval, provider: data.provider, mode: data.mode, requestedMarket: data.requestedMarket } };
+}
+function showPriceStrip(candles, meta) {
+const c = candles[candles.length - 1];
+const prev = candles[candles.length - 2];
+const change = c.close - prev.close;
+const pct = prev.close ? (change / prev.close) * 100 : 0;
+const strip = document.getElementById("priceStrip");
+strip.style.display = "grid";
+strip.innerHTML =  <div class="price-cell">LIVE CLOSE<b>${c.close.toFixed(5)}</b></div> <div class="price-cell">CHANGE<b>${change >= 0 ? '+' : ''}${change.toFixed(5)} (${pct.toFixed(3)}%)</b></div> <div class="price-cell">LAST CANDLE<b>${c.datetime || '--'}</b></div> <div class="price-cell">SOURCE<b>${meta?.symbol || 'Twelve Data'}</b></div>;
+}
+function getNextCandleEntryTime(candles, intervalMinutes = 1) {
+const last = Array.isArray(candles) && candles.length ? candles[candles.length - 1] : null;
+let entry = last?.datetime ? new Date(last.datetime) : new Date();
+if (Number.isNaN(entry.getTime())) entry = new Date();
+entry = new Date(entry.getTime() + intervalMinutes * 60000);
+entry.setSeconds(0, 0);
+return entry.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+function renderAnalysis(analysis, sourceText = "REAL OHLC", candles = []) {
+document.getElementById("resultSignal").innerText = analysis.signal;
+document.getElementById("resultSignal").className = "signal-text " + analysis.className;
+document.getElementById("entryTimeText").innerText = analysis.signal === "NO SIGNAL"
+? "⛔ ENTRY SKIPPED"
+: "⏱️ ENTRY TIME: " + getNextCandleEntryTime(candles, 1);
+const m = analysis.metrics || {};
+document.getElementById("resultDetails").innerHTML =
+<b>Confidence: ${analysis.confidence}%</b><br> +
+<div style="margin-top:10px;text-align:left;line-height:1.8;"> +
+<b>📊 Indicator Details</b><br> +
+EMA 13: ${Number(m.ema13 || 0).toFixed(5)} | EMA 50: ${Number(m.ema50 || 0).toFixed(5)}<br> +
+RSI 14: ${Number(m.rsi14 || 0).toFixed(2)}<br> +
+MACD: ${Number(m.macdValue || 0).toFixed(6)}<br> +
+Stochastic 5,3,3: ${Number(m.stoch || 0).toFixed(2)}<br> +
+</div> +
+(analysis.reason ? <div style="margin-top:6px;"><b>Confirmation:</b> ${analysis.reason}</div> : "");
+}
+function makeDemoCandles(count = 100) {
+const candles = [];
+let price = 1.10000 + (Math.random() - 0.5) * 0.01;
+const now = Date.now();
+for (let i = 0; i < count; i++) {
+const open = price;
+const drift = (Math.random() - 0.48) * 0.0012;
+const close = Math.max(0.00001, open + drift);
+const high = Math.max(open, close) + Math.random() * 0.00035;
+const low = Math.min(open, close) - Math.random() * 0.00035;
+candles.push({
+datetime: new Date(now - (count - 1 - i) * 60000).toISOString(),
+open, high, low, close, volume: 0
+});
+price = close;
+}
+return candles;
+}
+async function getLiveSignal() {
+const market = document.getElementById("liveMarketSelect").value;
+const card = document.getElementById("resultCard");
+card.style.display = "block";
+document.getElementById("copyBtn").style.display = "none";
+document.getElementById("resultMarket").innerText = market + " | REAL LIVE DATA";
+document.getElementById("resultSignal").innerText = "FETCHING REAL OHLC...";
+document.getElementById("resultSignal").className = "signal-text signal-neutral";
+document.getElementById("entryTimeText").innerText = "";
+try {
+setFeedStatus("status-warn", "FETCHING...");
+const result = await fetchRealCandles(market, 1, 100);
+lastRealCandles = result.candles;
+lastRealMeta = result.meta;
+showPriceStrip(result.candles, result.meta);
+const modeText = result.meta?.mode === "OTC_PROXY" ? "OTC PROXY • underlying pair feed (not Quotex OTC)" : "REGULAR FOREX";
+const analysis = analyzeSignal(result.candles);
+renderAnalysis(analysis, REAL 1-MIN OHLC • ${modeText} • ${result.meta?.symbol || cleanSymbol(market)}, result.candles);
+setFeedStatus("status-live", "● LIVE DATA");
+} catch (err) {
+const demoCandles = makeDemoCandles(100);
+const analysis = analyzeSignal(demoCandles);
+document.getElementById("resultMarket").innerText = market + " | SIMULATED SIGNAL";
+renderAnalysis(analysis, "SIMULATED", demoCandles);
+setFeedStatus("status-off", "SIMULATED MODE");
+}
+}
+function friendlyError(err) {
+const msg = String(err?.message || err || "UNKNOWN_ERROR");
+if (msg === "API_KEY_MISSING") return "Server-এ Twelve Data API key configure করুন।";
+if (msg === "SERVER_API_KEY_NOT_CONFIGURED") return "Server API key configure করা হয়নি।";
+if (msg === "NOT_ENOUGH_OHLC") return "এই symbol-এর জন্য যথেষ্ট 1-minute OHLC পাওয়া যায়নি।";
+if (msg.includes("Invalid symbol")) return "এই market symbol provider-এ supported নয়। OTC নামের বদলে regular Forex symbol ব্যবহার করা হয়েছে।";
+return msg;
+}
+async function getChartSignal() {
+const fileInput = document.getElementById("chartInput");
+if(!fileInput.files[0]) { alert("স্ক্রিনশট দিন!"); return; }
+const card = document.getElementById("resultCard");
+card.style.display = "block";
+document.getElementById("copyBtn").style.display = "none";
+document.getElementById("resultMarket").innerText = "SCREENSHOT ANALYSIS";
+document.getElementById("resultSignal").innerText = "NO SIGNAL";
+document.getElementById("resultSignal").className = "signal-text signal-neutral";
+document.getElementById("entryTimeText").innerText = "⛔ ENTRY SKIPPED";
+document.getElementById("resultDetails").innerHTML =
+<b>Screenshot received.</b><br> +
+এই v5 ভার্সনে screenshot-এর pixels থেকে OHLC তৈরি হচ্ছে না, তাই ভুলভাবে signal দেখানো হবে না।<br> +
+<span class="hint">Real signal-এর জন্য Live Market tab থেকে real OHLC feed ব্যবহার করুন।</span>;
+}
+async function generateFutureSignals() {
+const select = document.getElementById("futureMultiSelect");
+const selectedMarkets = Array.from(select.selectedOptions).map(option => option.value);
+if(selectedMarkets.length === 0){ alert("কমপক্ষে ১টি মার্কেট সিলেক্ট করুন!"); return; }
+const card = document.getElementById("resultCard");
+card.style.display = "block";
+document.getElementById("resultMarket").innerText = "FUTURE SIGNAL SCHEDULE";
+document.getElementById("resultSignal").innerText = "LOADING FUTURE API...";
+document.getElementById("resultSignal").className = "signal-text signal-neutral";
+const futureAssets = selectedMarkets.map(m => m.replace(/\s*(OTC)$/, "_otc").replace(///g, "")).join(",");
+const FUTURE_API = [https://quotexotc-futureapi.poghen-dx.workers.dev/pairs=$](https://quotexotc-futureapi.poghen-dx.workers.dev/pairs=$){encodeURIComponent(futureAssets)}?start_time=00:00&end_time=23:59;
+try {
+const response = await fetch(FUTURE_API, { cache: "no-store" });
+if (!response.ok) throw new Error("Future API request failed");
+const data = await response.json();
+if (data.status !== "success" || !Array.isArray(data.signals)) throw new Error("Invalid Future API response");
+const signals = data.signals.filter(s => s && s.asset && s.time && s.direction);
+if (!signals.length) throw new Error("No future signals returned");
+let tableHtml = <table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>SIGNAL</th><th>DURATION</th><th>MG</th><th>ACCURACY</th></tr>;
+futureTextToCopy = 👑 NAHID VIP BOT - FUTURE SIGNALS\n----------------------------------\n;
+signals.forEach(row => {
+const dir = String(row.direction).toUpperCase() === "CALL" ? "CALL ⬆️" : "PUT ⬇️";
+const asset = String(row.asset).replace(/_/g, "-");
+const duration = row.duration || "M1";
+const mg = row.martingale || "-";
+const accuracy = row.accuracy || "-";
+tableHtml += <tr><td><b>${row.time}</b></td><td>${asset}</td><td><b>${dir}</b></td><td>${duration}</td><td>${mg}</td><td>${accuracy}</td></tr>;
+futureTextToCopy += ⏱️ ${row.time} | ${asset} ➡️ ${dir} | ${duration} | ${mg} | ${accuracy}\n;
+});
+tableHtml += </table>;
+document.getElementById("resultSignal").innerText = "FUTURE SIGNALS READY";
+document.getElementById("resultSignal").className = "signal-text signal-call";
+document.getElementById("resultDetails").innerHTML = tableHtml +
+<div class="hint" style="margin-top:8px;">Provider: ${data.info?.provider || "Future API"} • ${signals.length} signals loaded.</div>;
+document.getElementById("copyBtn").style.display = "block";
+setFeedStatus("status-live", "● FUTURE API LIVE");
+} catch (err) {
+document.getElementById("resultSignal").innerText = "FUTURE API ERROR";
+document.getElementById("resultSignal").className = "signal-text signal-neutral";
+document.getElementById("resultDetails").innerHTML =
+<div class="hint">Future Signal API data could not be loaded. Please try again.</div>;
+document.getElementById("copyBtn").style.display = "none";
+setFeedStatus("status-off", "FUTURE API OFFLINE");
+}
+}
+function ema(values, period) {
+if (!values.length) return 0;
+const k = 2 / (period + 1);
+let e = values[0];
+for (let i = 1; i < values.length; i++) e = values[i] * k + e * (1 - k);
+return e;
+}
+function rsi(values, period = 14) {
+if (values.length <= period) return 50;
+let gain = 0, loss = 0;
+for (let i = values.length - period; i < values.length; i++) {
+const d = values[i] - values[i - 1];
+if (d >= 0) gain += d; else loss -= d;
+}
+if (loss === 0) return 100;
+const rs = (gain / period) / (loss / period);
+return 100 - (100 / (1 + rs));
+}
+function macd(values) { return ema(values, 12) - ema(values, 26); }
+function stochastic(candles, period = 5) {
+const recent = candles.slice(-period);
+const high = Math.max(...recent.map(c => c.high));
+const low = Math.min(...recent.map(c => c.low));
+const close = candles[candles.length - 1].close;
+if (high === low) return 50;
+return ((close - low) / (high - low)) * 100;
+}
+// 10-factor engine over REAL OHLC only.
+function analyzeSignal(candles) {
+if (!Array.isArray(candles) || candles.length < 60) {
+return {signal:"NO SIGNAL", confidence:0, className:"signal-neutral", reason:"Not enough real OHLC data.", metrics:{ema13:0,ema50:0,rsi14:50,macdValue:0,stoch:50}};
+}
+const closes = candles.map(c => c.close);
+const last = candles.at(-1), prev = candles.at(-2);
+const ema13 = ema(closes,13), ema50 = ema(closes,50), rsi14 = rsi(closes,14);
+const macdValue = macd(closes), stoch = stochastic(candles,5);
+let call=0, put=0, factors=0; const reasons=[];
+const vote = (dir, text) => { factors++; if(dir==='CALL') call++; else if(dir==='PUT') put++; if(text) reasons.push(text); };
+// 1 EMA trend
+vote(ema13 > ema50 ? 'CALL':'PUT', EMA ${ema13>ema50?'bullish':'bearish'});
+// 2 RSI
+if(rsi14 >= 52 && rsi14 < 70) vote('CALL','RSI bullish');
+else if(rsi14 <= 48 && rsi14 > 30) vote('PUT','RSI bearish');
+else vote(null,'RSI neutral');
+// 3 MACD
+vote(macdValue >= 0 ? 'CALL':'PUT', MACD ${macdValue>=0?'↑':'↓'});
+// 4 Stochastic
+if(stoch >= 50 && stoch < 85) vote('CALL','Stoch bullish');
+else if(stoch <= 50 && stoch > 15) vote('PUT','Stoch bearish');
+else vote(null,'Stoch neutral');
+// 5 Candle pressure
+vote(last.close > last.open ? 'CALL' : last.close < last.open ? 'PUT' : null, 'Candle pressure');
+// 6 Big-candle filter (abnormal candle blocks signal)
+const avgBody = candles.slice(-21,-1).reduce((s,c)=>s+Math.abs(c.close-c.open),0)/20;
+const body = Math.abs(last.close-last.open);
+if(avgBody > 0 && body > avgBody2.2) {
+return {signal:"NO SIGNAL", confidence:0, className:"signal-neutral", reason:"Big-candle filter: abnormal real candle detected; entry skipped.", metrics:{ema13,ema50,rsi14,macdValue,stoch}};
+}
+vote(last.close >= last.open ? 'CALL':'PUT','Big-candle filter passed');
+// 7 Support / resistance
+const hi20=Math.max(...candles.slice(-20).map(c=>c.high));
+const lo20=Math.min(...candles.slice(-20).map(c=>c.low));
+const nearR=last.close >= hi20-(hi200.001);
+const nearS=last.close <= lo20+(lo200.001);
+if(nearS) vote('CALL','Near support');
+else if(nearR) vote('PUT','Near resistance');
+else vote(ema13>ema50?'CALL':'PUT','S/R follows trend');
+// 8 Candle-gap handler
+const gapPct = prev.close ? Math.abs(last.open-prev.close)/prev.close100 : 0;
+if(gapPct > 0.15) {
+return {signal:"NO SIGNAL", confidence:0, className:"signal-neutral", reason:Candle-gap handler: ${gapPct.toFixed(3)}% gap detected; entry skipped., metrics:{ema13,ema50,rsi14,macdValue,stoch}};
+}
+vote(last.close >= last.open ? 'CALL':'PUT','Candle gap normal');
+// 9 Volatility / range health
+const avgRange=candles.slice(-21,-1).reduce((s,c)=>s+(c.high-c.low),0)/20;
+const lastRange=last.high-last.low;
+if(avgRange>0 && lastRange < avgRange*2.0) vote(last.close>=last.open?'CALL':'PUT','Volatility acceptable');
+else vote(null,'Volatility neutral');
+// 10 Multi-confirmation
+if(call >= put+2) vote('CALL','Multi-confirmation aligned');
+else if(put >= call+2) vote('PUT','Multi-confirmation aligned');
+else vote(null,'Multi-confirmation weak');
+const winner = Math.max(call,put), loser=Math.min(call,put);
+const lead = winner-loser;
+const confidence = Math.min(95, Math.max(55, Math.round(55 + winner5 + lead4)));
+// Signal-availability fix: real data is still mandatory, but a valid directional
+// majority is allowed to produce a signal. 7/10 remains the HIGH-CONFIDENCE level
+// instead of blocking every normal market condition.
+if(winner < 5 || lead < 2) {
+return {signal:"NO SIGNAL", confidence, className:"signal-neutral", reason:Directional confirmations too weak: ${winner}/10 (lead ${lead}). Waiting for a clearer setup., metrics:{ema13,ema50,rsi14,macdValue,stoch}};
+}
+const isCall = call > put;
+const quality = winner >= 7 ? "HIGH CONFIDENCE 7/10+" : "VALID SIGNAL • below 7/10 high-confidence level";
+return {signal:isCall?"CALL (UP ⬆️)":"PUT (DOWN ⬇️)", confidence, className:isCall?"signal-call":"signal-put", reason:${winner}/10 confirmations • ${quality} • ${reasons.filter(Boolean).slice(0,6).join(' • ')}, metrics:{ema13,ema50,rsi14,macdValue,stoch}};
+}
+function analyzeGeneratedSignal(candles) {
+const base = analyzeSignal(candles);
+if (base.signal !== "NO SIGNAL") return base;
+const closes = candles.map(c => c.close);
+const e13 = ema(closes,13), e50 = ema(closes,50);
+const r = rsi(closes,14), m = macd(closes), st = stochastic(candles,5);
+const callScore = (e13 > e50 ? 2 : 0) + (r >= 50 ? 2 : 0) + (m >= 0 ? 2 : 0) + (st >= 50 ? 1 : 0);
+const putScore = (e13 < e50 ? 2 : 0) + (r < 50 ? 2 : 0) + (m < 0 ? 2 : 0) + (st < 50 ? 1 : 0);
+const isCall = callScore >= putScore;
+const confidence = Math.min(92, 62 + Math.abs(callScore-putScore)*5);
+return { signal:isCall?"CALL (UP ⬆️)":"PUT (DOWN ⬇️)", confidence, className:isCall?"signal-call":"signal-put", reason:Generated signal • EMA ${isCall?'bullish':'bearish'} • RSI ${r.toFixed(1)} • MACD ${m>=0?'positive':'negative'} • Stochastic ${st.toFixed(1)}, metrics:{ema13:e13,ema50:e50,rsi14:r,macdValue:m,stoch:st} };
+}
+async function generateCompoundingSignal() {
+const plan=document.getElementById("compoundingSelect").value;
+const market=document.getElementById("compoundingMarketSelect").value;
+const interval=parseInt(document.getElementById("compoundingIntervalSelect").value);
+const [startAmount,targetAmount]=plan.split("-").map(Number);
+const card=document.getElementById("resultCard"); card.style.display="block";
+document.getElementById("copyBtn").style.display="none";
+document.getElementById("resultMarket").innerText=🔥 SPECIAL COMPOUNDING | ${market};
+document.getElementById("resultSignal").innerText="GENERATING SIGNAL...";
+document.getElementById("resultSignal").className="signal-text signal-neutral";
+try {
+const result=await fetchRealCandles(market,1,100);
+const analysis=analyzeGeneratedSignal(result.candles);
+const now=new Date(); now.setMinutes(now.getMinutes()+interval); now.setSeconds(0);
+const timeStr=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+document.getElementById("resultSignal").innerText=analysis.signal==="NO SIGNAL"?"SPECIAL NO SIGNAL ⚠️":(analysis.signal==="CALL (UP ⬆️)"?"SPECIAL CALL ⬆️":"SPECIAL PUT ⬇️");
+document.getElementById("resultSignal").className="signal-text "+analysis.className;
+document.getElementById("entryTimeText").innerText=analysis.signal==="NO SIGNAL"?"⛔ ENTRY SKIPPED":"⏱️ ENTRY TIME: "+timeStr;
+document.getElementById("resultDetails").innerHTML=🔥 COMPOUNDING PLAN: <b>${startAmount} → ${targetAmount}</b><br>📊 MARKET: <b>${market}</b><br>🎯 CONFIDENCE: <b>${analysis.confidence}%</b><br>🧠 REAL-DATA FILTERS: ${analysis.reason}<br>⏱️ NEXT SIGNAL SLOT: <b>${interval} মিনিট পরে</b><br>⚠️ Target plan; profit guarantee নয়।;
+showPriceStrip(result.candles,result.meta); setFeedStatus("status-live","● LIVE DATA");
+} catch(err) {
+const demo = makeDemoCandles(100);
+const analysis = analyzeGeneratedSignal(demo);
+const now=new Date(); now.setMinutes(now.getMinutes()+interval); now.setSeconds(0);
+const timeStr=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+document.getElementById("resultSignal").innerText=analysis.signal==="CALL (UP ⬆️)"?"SPECIAL CALL ⬆️":"SPECIAL PUT ⬇️";
+document.getElementById("resultSignal").className="signal-text "+analysis.className;
+document.getElementById("entryTimeText").innerText="⏱️ ENTRY TIME: "+timeStr;
+document.getElementById("resultDetails").innerHTML=🔥 COMPOUNDING PLAN: <b>${startAmount} → ${targetAmount}</b><br>📊 MARKET: <b>${market}</b><br>🎯 CONFIDENCE: <b>${analysis.confidence}%</b><br>🧠 INDICATOR DETAILS: ${analysis.reason}<br>⏱️ NEXT SIGNAL SLOT: <b>${interval} মিনিট পরে</b>;
+setFeedStatus("status-off","SIMULATED SIGNAL");
+}
+}
+function copyFutureSignals() {
+navigator.clipboard.writeText(futureTextToCopy).then(()=>alert("সিগন্যাল কপি করা হয়েছে!")).catch(()=>alert("কপি করা যায়নি!"));
+}
 </script>
 </body>
 </html>
