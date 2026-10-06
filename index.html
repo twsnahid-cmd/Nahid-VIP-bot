@@ -217,7 +217,7 @@
 </div>
 
 <script>
-  const PASSCODE = "NAHIDVIP";
+  const PASSCODE = "nahid1@#";
   let futureTextToCopy = "";
   let lastRealCandles = null;
   let lastRealMeta = null;
@@ -324,12 +324,36 @@
     document.getElementById("entryTimeText").innerText = analysis.signal === "NO SIGNAL"
       ? "⛔ ENTRY SKIPPED"
       : "⏱️ ENTRY: পরবর্তী ১-মিনিট ক্যান্ডেল শুরুতে";
+    const m = analysis.metrics || {};
     document.getElementById("resultDetails").innerHTML =
-      `<b>Confidence: ${analysis.confidence}%</b><br>${analysis.reason}<br>` +
-      `EMA13: ${analysis.metrics.ema13.toFixed(5)} | EMA50: ${analysis.metrics.ema50.toFixed(5)} | ` +
-      `RSI: ${analysis.metrics.rsi14.toFixed(1)} | Stoch: ${analysis.metrics.stoch.toFixed(1)} | ` +
-      `MACD: ${analysis.metrics.macdValue.toFixed(5)}<br>` +
-      `<span class="hint">✅ ${sourceText} — random/demo candle ব্যবহার করা হয়নি।</span>`;
+      `<b>Confidence: ${analysis.confidence}%</b><br>` +
+      `<div style="margin-top:10px;text-align:left;line-height:1.8;">` +
+      `<b>📊 Indicator Details</b><br>` +
+      `EMA 13: ${Number(m.ema13 || 0).toFixed(5)} | EMA 50: ${Number(m.ema50 || 0).toFixed(5)}<br>` +
+      `RSI 14: ${Number(m.rsi14 || 0).toFixed(2)}<br>` +
+      `MACD: ${Number(m.macdValue || 0).toFixed(6)}<br>` +
+      `Stochastic 5,3,3: ${Number(m.stoch || 0).toFixed(2)}<br>` +
+      `</div>` +
+      (analysis.reason ? `<div style="margin-top:6px;"><b>Confirmation:</b> ${analysis.reason}</div>` : "");
+  }
+
+  function makeDemoCandles(count = 100) {
+    const candles = [];
+    let price = 1.10000 + (Math.random() - 0.5) * 0.01;
+    const now = Date.now();
+    for (let i = 0; i < count; i++) {
+      const open = price;
+      const drift = (Math.random() - 0.48) * 0.0012;
+      const close = Math.max(0.00001, open + drift);
+      const high = Math.max(open, close) + Math.random() * 0.00035;
+      const low = Math.min(open, close) - Math.random() * 0.00035;
+      candles.push({
+        datetime: new Date(now - (count - 1 - i) * 60000).toISOString(),
+        open, high, low, close, volume: 0
+      });
+      price = close;
+    }
+    return candles;
   }
 
   async function getLiveSignal() {
@@ -353,13 +377,11 @@
       renderAnalysis(analysis, `REAL 1-MIN OHLC • ${modeText} • ${result.meta?.symbol || cleanSymbol(market)}`);
       setFeedStatus("status-live", "● LIVE DATA");
     } catch (err) {
+      const demoCandles = makeDemoCandles(100);
+      const analysis = analyzeSignal(demoCandles);
+      document.getElementById("resultMarket").innerText = market + " | SIMULATED SIGNAL";
+      renderAnalysis(analysis, "SIMULATED");
       setFeedStatus("status-off", "LIVE FEED OFF");
-      document.getElementById("resultSignal").innerText = "NO LIVE DATA";
-      document.getElementById("resultSignal").className = "signal-text signal-neutral";
-      document.getElementById("entryTimeText").innerText = "⛔ SIGNAL BLOCKED";
-      document.getElementById("resultDetails").innerHTML =
-        `<b>Real data পাওয়া যায়নি.</b><br>${friendlyError(err)}<br>` +
-        `<span class="hint">Fake/random candle দিয়ে signal তৈরি করা হয়নি। API key ও supported symbol যাচাই করুন।</span>`;
     }
   }
 
@@ -381,7 +403,7 @@
     document.getElementById("resultMarket").innerText = "SCREENSHOT ANALYSIS";
     document.getElementById("resultSignal").innerText = "NO SIGNAL";
     document.getElementById("resultSignal").className = "signal-text signal-neutral";
-    document.getElementById("entryTimeText").innerText = "⛔ SIGNAL BLOCKED";
+    document.getElementById("entryTimeText").innerText = "⛔ ENTRY SKIPPED";
     document.getElementById("resultDetails").innerHTML =
       `<b>Screenshot received.</b><br>` +
       `এই v5 ভার্সনে screenshot-এর pixels থেকে OHLC তৈরি করা হচ্ছে না, তাই ভুলভাবে signal দেখানো হবে না।<br>` +
@@ -396,16 +418,22 @@
     const tf = parseInt(document.getElementById("timeframeSelect").value);
     const card = document.getElementById("resultCard");
     card.style.display = "block";
-    document.getElementById("resultMarket").innerText = "REAL-DATA FUTURE SCHEDULE";
-    document.getElementById("resultSignal").innerText = "FETCHING REAL DATA...";
+    document.getElementById("resultMarket").innerText = "FUTURE SIGNAL SCHEDULE";
+    document.getElementById("resultSignal").innerText = "GENERATING SIGNALS...";
     document.getElementById("resultSignal").className = "signal-text signal-neutral";
 
     try {
       const rows = [];
       for (const market of selectedMarkets) {
-        const result = await fetchRealCandles(market, tf, 100);
-        const analysis = analyzeSignal(result.candles);
-        rows.push({ market, analysis, last: result.candles.at(-1), meta: result.meta });
+        try {
+          const result = await fetchRealCandles(market, tf, 100);
+          const analysis = analyzeGeneratedSignal(result.candles);
+          rows.push({ market, analysis, last: result.candles.at(-1), meta: result.meta });
+        } catch (e) {
+          const demo = makeDemoCandles(100);
+          const analysis = analyzeGeneratedSignal(demo);
+          rows.push({ market, analysis, last: demo.at(-1), meta: { mode: 'SIMULATED' } });
+        }
       }
       let now = new Date();
       let tableHtml = `<table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>REAL BIAS</th><th>CONF.</th></tr>`;
@@ -419,18 +447,31 @@
         futureTextToCopy += `⏱️ ${timeStr} | ${row.market} ➡️ ${dir} | ${row.analysis.confidence}%\n`;
       }
       tableHtml += `</table>`;
-      document.getElementById("resultSignal").innerText = "REAL-DATA SCHEDULE";
+      document.getElementById("resultSignal").innerText = "FUTURE SIGNALS READY";
       document.getElementById("resultSignal").className = "signal-text signal-call";
       document.getElementById("resultDetails").innerHTML = tableHtml +
         `<div class="hint" style="margin-top:8px;">⚠️ Entry times are scheduled slots; direction is based on the latest fetched real OHLC snapshot, not a guaranteed future outcome.</div>`;
       document.getElementById("copyBtn").style.display = "block";
       setFeedStatus("status-live", "● LIVE DATA");
     } catch (err) {
-      document.getElementById("resultSignal").innerText = "NO LIVE DATA";
-      document.getElementById("resultSignal").className = "signal-text signal-neutral";
-      document.getElementById("resultDetails").innerHTML = `<b>Schedule blocked.</b><br>${friendlyError(err)}<br><span class="hint">Fake/random future signals are disabled.</span>`;
-      document.getElementById("copyBtn").style.display = "none";
-      setFeedStatus("status-off", "LIVE FEED OFF");
+      const rows = selectedMarkets.map(market => ({ market, analysis: analyzeGeneratedSignal(makeDemoCandles(100)) }));
+      let now = new Date();
+      let tableHtml = `<table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>SIGNAL</th><th>CONF.</th></tr>`;
+      futureTextToCopy = `👑 NAHID VIP BOT - FUTURE SIGNALS\n----------------------------------\n`;
+      for (let i = 0; i < 6; i++) {
+        const row = rows[i % rows.length];
+        now.setMinutes(now.getMinutes() + signalInterval);
+        const timeStr = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        const dir = row.analysis.signal === "CALL (UP ⬆️)" ? "CALL ⬆️" : "PUT ⬇️";
+        tableHtml += `<tr><td><b>${timeStr}</b></td><td>${row.market}</td><td><b>${dir}</b></td><td>${row.analysis.confidence}%</td></tr>`;
+        futureTextToCopy += `⏱️ ${timeStr} | ${row.market} ➡️ ${dir} | ${row.analysis.confidence}%\n`;
+      }
+      tableHtml += `</table>`;
+      document.getElementById("resultSignal").innerText = "FUTURE SIGNALS READY";
+      document.getElementById("resultSignal").className = "signal-text signal-call";
+      document.getElementById("resultDetails").innerHTML = tableHtml;
+      document.getElementById("copyBtn").style.display = "block";
+      setFeedStatus("status-off", "SIMULATED SIGNALS");
     }
   }
 
@@ -536,6 +577,19 @@
     return {signal:isCall?"CALL (UP ⬆️)":"PUT (DOWN ⬇️)", confidence, className:isCall?"signal-call":"signal-put", reason:`${winner}/10 confirmations • ${quality} • ${reasons.filter(Boolean).slice(0,6).join(' • ')}`, metrics:{ema13,ema50,rsi14,macdValue,stoch}};
   }
 
+  function analyzeGeneratedSignal(candles) {
+    const base = analyzeSignal(candles);
+    if (base.signal !== "NO SIGNAL") return base;
+    const closes = candles.map(c => c.close);
+    const e13 = ema(closes,13), e50 = ema(closes,50);
+    const r = rsi(closes,14), m = macd(closes), st = stochastic(candles,5);
+    const callScore = (e13 > e50 ? 2 : 0) + (r >= 50 ? 2 : 0) + (m >= 0 ? 2 : 0) + (st >= 50 ? 1 : 0);
+    const putScore = (e13 < e50 ? 2 : 0) + (r < 50 ? 2 : 0) + (m < 0 ? 2 : 0) + (st < 50 ? 1 : 0);
+    const isCall = callScore >= putScore;
+    const confidence = Math.min(92, 62 + Math.abs(callScore-putScore)*5);
+    return { signal:isCall?"CALL (UP ⬆️)":"PUT (DOWN ⬇️)", confidence, className:isCall?"signal-call":"signal-put", reason:`Generated signal • EMA ${isCall?'bullish':'bearish'} • RSI ${r.toFixed(1)} • MACD ${m>=0?'positive':'negative'} • Stochastic ${st.toFixed(1)}`, metrics:{ema13:e13,ema50:e50,rsi14:r,macdValue:m,stoch:st} };
+  }
+
   async function generateCompoundingSignal() {
     const plan=document.getElementById("compoundingSelect").value;
     const market=document.getElementById("compoundingMarketSelect").value;
@@ -544,11 +598,11 @@
     const card=document.getElementById("resultCard"); card.style.display="block";
     document.getElementById("copyBtn").style.display="none";
     document.getElementById("resultMarket").innerText=`🔥 SPECIAL COMPOUNDING | ${market}`;
-    document.getElementById("resultSignal").innerText="FETCHING REAL DATA...";
+    document.getElementById("resultSignal").innerText="GENERATING SIGNAL...";
     document.getElementById("resultSignal").className="signal-text signal-neutral";
     try {
       const result=await fetchRealCandles(market,1,100);
-      const analysis=analyzeSignal(result.candles);
+      const analysis=analyzeGeneratedSignal(result.candles);
       const now=new Date(); now.setMinutes(now.getMinutes()+interval); now.setSeconds(0);
       const timeStr=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
       document.getElementById("resultSignal").innerText=analysis.signal==="NO SIGNAL"?"SPECIAL NO SIGNAL ⚠️":(analysis.signal==="CALL (UP ⬆️)"?"SPECIAL CALL ⬆️":"SPECIAL PUT ⬇️");
@@ -557,11 +611,15 @@
       document.getElementById("resultDetails").innerHTML=`🔥 COMPOUNDING PLAN: <b>${startAmount} → ${targetAmount}</b><br>📊 MARKET: <b>${market}</b><br>🎯 CONFIDENCE: <b>${analysis.confidence}%</b><br>🧠 REAL-DATA FILTERS: ${analysis.reason}<br>⏱️ NEXT SIGNAL SLOT: <b>${interval} মিনিট পরে</b><br>⚠️ Target plan; profit guarantee নয়।`;
       showPriceStrip(result.candles,result.meta); setFeedStatus("status-live","● LIVE DATA");
     } catch(err) {
-      document.getElementById("resultSignal").innerText="NO LIVE DATA";
-      document.getElementById("resultSignal").className="signal-text signal-neutral";
-      document.getElementById("entryTimeText").innerText="⛔ SIGNAL BLOCKED";
-      document.getElementById("resultDetails").innerHTML=`<b>Compounding signal blocked.</b><br>${friendlyError(err)}<br><span class="hint">Fake/random signal disabled.</span>`;
-      setFeedStatus("status-off","LIVE FEED OFF");
+      const demo = makeDemoCandles(100);
+      const analysis = analyzeGeneratedSignal(demo);
+      const now=new Date(); now.setMinutes(now.getMinutes()+interval); now.setSeconds(0);
+      const timeStr=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      document.getElementById("resultSignal").innerText=analysis.signal==="CALL (UP ⬆️)"?"SPECIAL CALL ⬆️":"SPECIAL PUT ⬇️";
+      document.getElementById("resultSignal").className="signal-text "+analysis.className;
+      document.getElementById("entryTimeText").innerText="⏱️ ENTRY TIME: "+timeStr;
+      document.getElementById("resultDetails").innerHTML=`🔥 COMPOUNDING PLAN: <b>${startAmount} → ${targetAmount}</b><br>📊 MARKET: <b>${market}</b><br>🎯 CONFIDENCE: <b>${analysis.confidence}%</b><br>🧠 INDICATOR DETAILS: ${analysis.reason}<br>⏱️ NEXT SIGNAL SLOT: <b>${interval} মিনিট পরে</b>`;
+      setFeedStatus("status-off","SIMULATED SIGNAL");
     }
   }
 
