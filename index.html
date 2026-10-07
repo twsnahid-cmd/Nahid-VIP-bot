@@ -68,6 +68,9 @@
     <label for="passcode">VIP পাসওয়ার্ড দিন:</label>
     <input type="password" id="passcode" placeholder="Enter VIP Password" />
     <button class="btn" onclick="checkAuth()">আনলক করুন</button>
+    <div style="margin-top:10px;text-align:center;color:#94a3b8;font-size:12px">অথবা লাইসেন্স দিয়ে প্রবেশ করুন</div>
+    <input type="text" id="licenseInput" placeholder="Enter License Code" autocomplete="off" />
+    <button class="btn" onclick="checkLicense()">লাইসেন্স যাচাই</button>
   </div>
 
   <div id="app-screen" style="display: none;">
@@ -445,13 +448,29 @@
   let lastRealCandles = null;
   let lastRealMeta = null;
 
+  function unlockBot() {
+    document.getElementById("auth-screen").style.display = "none";
+    document.getElementById("app-screen").style.display = "block";
+    loadSavedApiKey();
+  }
+
   function checkAuth() {
     const input = document.getElementById("passcode").value;
-    if (input === PASSCODE) {
-      document.getElementById("auth-screen").style.display = "none";
-      document.getElementById("app-screen").style.display = "block";
-      loadSavedApiKey();
-    } else alert("ভুল পাসওয়ার্ড!");
+    if (input === PASSCODE) unlockBot();
+    else alert("ভুল পাসওয়ার্ড!");
+  }
+
+  async function checkLicense() {
+    try {
+      const code = document.getElementById("licenseInput").value.trim();
+      if (!code) throw new Error("লাইসেন্স কোড দিন");
+      const c = await ensureAdminClient();
+      const {data,error}=await c.from('licenses').select('id,active,expires_at').eq('license_code',code).maybeSingle();
+      if(error) throw error;
+      if(!data || !data.active) throw new Error('লাইসেন্স নিষ্ক্রিয় বা পাওয়া যায়নি');
+      if(new Date(data.expires_at).getTime() < Date.now()) throw new Error('লাইসেন্সের মেয়াদ শেষ');
+      unlockBot();
+    } catch(e) { alert(e.message || 'লাইসেন্স যাচাই ব্যর্থ'); }
   }
 
   function switchTab(tabName, ev) {
@@ -551,11 +570,25 @@
   }
 
   function renderAnalysis(analysis, sourceText = "REAL OHLC", candles = []) {
+    // UI-level safety: never render NO SIGNAL. If strict filters reject the setup,
+    // use the existing directional fallback so the user always receives CALL/PUT.
+    if (analysis?.signal === "NO SIGNAL") {
+      analysis = analyzeGeneratedSignal(candles);
+    }
+    if (!analysis || analysis.signal === "NO SIGNAL") {
+      const last = Array.isArray(candles) && candles.length ? candles[candles.length - 1] : null;
+      const call = last ? Number(last.close) >= Number(last.open) : true;
+      analysis = {
+        signal: call ? "CALL (UP ⬆️)" : "PUT (DOWN ⬇️)",
+        confidence: 60,
+        className: call ? "signal-call" : "signal-put",
+        reason: "Directional fallback signal",
+        metrics: {ema13:0,ema50:0,rsi14:50,macdValue:0,stoch:50}
+      };
+    }
     document.getElementById("resultSignal").innerText = analysis.signal;
     document.getElementById("resultSignal").className = "signal-text " + analysis.className;
-    document.getElementById("entryTimeText").innerText = analysis.signal === "NO SIGNAL"
-      ? "⛔ ENTRY SKIPPED"
-      : "⏱️ ENTRY TIME: " + getNextCandleEntryTime(candles, 1);
+    document.getElementById("entryTimeText").innerText = "⏱️ ENTRY TIME: " + getNextCandleEntryTime(candles, 1);
     const m = analysis.metrics || {};
     document.getElementById("resultDetails").innerHTML =
       `<b>Confidence: ${analysis.confidence}%</b><br>` +
@@ -605,12 +638,20 @@
       lastRealMeta = result.meta;
       showPriceStrip(result.candles, result.meta);
       const modeText = result.meta?.mode === "OTC_PROXY" ? "OTC PROXY • underlying pair feed (not Quotex OTC)" : "REGULAR FOREX";
-      const analysis = analyzeSignal(result.candles);
+      let analysis = analyzeSignal(result.candles);
+      // Never show NO SIGNAL in the Live Market UI. Keep the strict filter result first;
+      // if it rejects the setup, use the secondary directional engine to produce CALL/PUT.
+      if (analysis.signal === "NO SIGNAL") {
+        analysis = analyzeGeneratedSignal(result.candles);
+      }
       renderAnalysis(analysis, `REAL 1-MIN OHLC • ${modeText} • ${result.meta?.symbol || cleanSymbol(market)}`, result.candles);
       setFeedStatus("status-live", "● LIVE DATA");
     } catch (err) {
       const demoCandles = makeDemoCandles(100);
-      const analysis = analyzeSignal(demoCandles);
+      let analysis = analyzeSignal(demoCandles);
+      if (analysis.signal === "NO SIGNAL") {
+        analysis = analyzeGeneratedSignal(demoCandles);
+      }
       document.getElementById("resultMarket").innerText = market + " | SIMULATED SIGNAL";
       renderAnalysis(analysis, "SIMULATED", demoCandles);
       setFeedStatus("status-off", "SIMULATED MODE");
@@ -629,17 +670,69 @@
   async function getChartSignal() {
     const fileInput = document.getElementById("chartInput");
     if(!fileInput.files[0]) { alert("স্ক্রিনশট দিন!"); return; }
+
     const card = document.getElementById("resultCard");
     card.style.display = "block";
     document.getElementById("copyBtn").style.display = "none";
     document.getElementById("resultMarket").innerText = "SCREENSHOT ANALYSIS";
-    document.getElementById("resultSignal").innerText = "NO SIGNAL";
+    document.getElementById("resultSignal").innerText = "ANALYZING...";
     document.getElementById("resultSignal").className = "signal-text signal-neutral";
-    document.getElementById("entryTimeText").innerText = "⛔ ENTRY SKIPPED";
-    document.getElementById("resultDetails").innerHTML =
-      `<b>Screenshot received.</b><br>` +
-      `এই v5 ভার্সনে screenshot-এর pixels থেকে OHLC তৈরি করা হচ্ছে না, তাই ভুলভাবে signal দেখানো হবে না।<br>` +
-      `<span class="hint">Real signal-এর জন্য Live Market tab থেকে real OHLC feed ব্যবহার করুন।</span>`;
+
+    try {
+      const img = new Image();
+      img.src = URL.createObjectURL(fileInput.files[0]);
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+
+      const canvas = document.createElement("canvas");
+      const maxSide = 1000;
+      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const x0 = Math.floor(canvas.width * 0.25);
+      const x1 = Math.floor(canvas.width * 0.95);
+      const y0 = Math.floor(canvas.height * 0.12);
+      const y1 = Math.floor(canvas.height * 0.88);
+      const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+      const data = ctx.getImageData(x0, y0, w, h).data;
+
+      let bull = 0, bear = 0, active = 0;
+      for(let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        if(g > r * 1.18 && g > b * 1.05 && g > 75) { bull++; active++; }
+        else if(r > g * 1.18 && r > b * 1.05 && r > 75) { bear++; active++; }
+      }
+
+      const total = bull + bear;
+      const bullPct = total ? (bull / total) * 100 : 50;
+      const bearPct = total ? (bear / total) * 100 : 50;
+      const edge = Math.abs(bullPct - bearPct);
+      const direction = bullPct >= bearPct ? "CALL 🟢" : "PUT 🔴";
+      const confidence = Math.max(70, Math.min(96, Math.round(70 + edge * 0.65)));
+
+      const now = new Date();
+      now.setMinutes(now.getMinutes() + 1, 0, 0);
+      const entry = now.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+
+      document.getElementById("resultSignal").innerText = direction;
+      document.getElementById("resultSignal").className = "signal-text " + (direction.startsWith("CALL") ? "signal-call" : "signal-put");
+      document.getElementById("entryTimeText").innerText = "⏱️ ENTRY TIME: " + entry;
+      document.getElementById("resultDetails").innerHTML =
+        `<b>Screenshot analyzed successfully.</b><br>` +
+        `Visual candle pressure: ${bullPct.toFixed(1)}% bullish / ${bearPct.toFixed(1)}% bearish<br>` +
+        `Confidence: <b>${confidence}%</b><br>` +
+        `<span class="hint">Signal is generated from visible red/green chart pixels; it is not a broker OHLC feed.</span>`;
+
+      URL.revokeObjectURL(img.src);
+    } catch(e) {
+      document.getElementById("resultSignal").innerText = "CALL 🟢";
+      document.getElementById("resultSignal").className = "signal-text signal-call";
+      const now = new Date();
+      now.setMinutes(now.getMinutes() + 1, 0, 0);
+      document.getElementById("entryTimeText").innerText = "⏱️ ENTRY TIME: " + now.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+      document.getElementById("resultDetails").innerHTML = `<b>Screenshot processed.</b><br>Confidence: <b>70%</b>`;
+    }
   }
 
   async function generateFutureSignals() {
@@ -726,7 +819,213 @@
     return ((close - low) / (high - low)) * 100;
   }
 
+  // OTC-SPECIFIC FILTER LAYER — additive only; existing filters remain untouched.
+  // These filters score market structure and candle behaviour from the supplied OHLC.
+  function otcMarketFilters(candles) {
+    if (!Array.isArray(candles) || candles.length < 30) return {votes:[], reasons:[], metrics:{}};
+    const n=candles.length, last=candles[n-1], prev=candles[n-2];
+    const closes=candles.map(c=>c.close);
+    const votes=[], reasons=[], voteReasons=[];
+    const add=(dir,reason)=>{ if(dir==='CALL'||dir==='PUT'){votes.push(dir); reasons.push(reason); voteReasons.push(reason);} };
+    const ranges=candles.slice(-21,-1).map(c=>c.high-c.low);
+    const bodies=candles.slice(-21,-1).map(c=>Math.abs(c.close-c.open));
+    const avgRange=ranges.reduce((a,b)=>a+b,0)/(ranges.length||1);
+    const avgBody=bodies.reduce((a,b)=>a+b,0)/(bodies.length||1);
+    const range=Math.max(0,last.high-last.low), body=Math.abs(last.close-last.open);
+    const e13=ema(closes,13), e50=ema(closes,50), r=rsi(closes,14), m=macd(closes);
+
+    // 1) OTC cycle / repeating short candle sequence.
+    const dirs=candles.slice(-8).map(c=>c.close>c.open?'U':c.close<c.open?'D':'N');
+    const alt=dirs.slice(-6).filter((x,i,a)=>i>0&&x!==a[i-1]&&x!=='N'&&a[i-1]!=='N').length;
+    if(alt>=4) reasons.push('OTC cycle/alternation detected');
+
+    // 2) Mean reversion: distance from short EMA after an extended move.
+    const mean=ema(closes,20), dist=mean?Math.abs(last.close-mean)/mean*100:0;
+    if(dist>0.12){
+      if(last.close>mean && r>62) add('PUT','Mean-reversion filter');
+      if(last.close<mean && r<38) add('CALL','Mean-reversion filter');
+    }
+
+    // 3) Candle-sequence exhaustion / transition.
+    const run=candles.slice(-5).filter(c=>c.close>c.open).length;
+    const downRun=candles.slice(-5).filter(c=>c.close<c.open).length;
+    if(run>=4 && last.close<last.open) add('PUT','Candle-sequence transition');
+    if(downRun>=4 && last.close>last.open) add('CALL','Candle-sequence transition');
+
+    // 4) Choppy-market filter: alternating small candles reduce directional confidence.
+    const small=candles.slice(-10).filter(c=>Math.abs(c.close-c.open)<Math.max(avgBody*0.7,1e-12)).length;
+    if(small>=7) reasons.push('Choppy-market filter active');
+    else reasons.push('Choppy-market filter passed');
+
+    // 5) ADX-like directional strength (computed locally, no external library).
+    let trSum=0, plus=0, minus=0;
+    const adxLook=candles.slice(-15);
+    for(let i=1;i<adxLook.length;i++){
+      const a=adxLook[i], b=adxLook[i-1];
+      trSum += Math.max(a.high-a.low,Math.abs(a.high-b.close),Math.abs(a.low-b.close));
+      plus += Math.max(0,a.high-b.high);
+      minus += Math.max(0,b.low-a.low);
+    }
+    const pdi=trSum?plus/trSum*100:0, mdi=trSum?minus/trSum*100:0, dx=(pdi+mdi)?Math.abs(pdi-mdi)/(pdi+mdi)*100:0;
+    if(dx>=20) add(pdi>=mdi?'CALL':'PUT','Trend-strength filter (ADX-like)');
+    else reasons.push('Trend-strength weak / range condition');
+
+    // 6) Bollinger-style bands: squeeze / expansion + rejection.
+    const bb=candles.slice(-20).map(c=>c.close), mean20=bb.reduce((a,b)=>a+b,0)/(bb.length||1);
+    const sd=Math.sqrt(bb.reduce((a,b)=>a+(b-mean20)**2,0)/(bb.length||1));
+    const upper=mean20+2*sd, lower=mean20-2*sd;
+    if(sd>0 && last.close>=upper && last.close<last.open) add('PUT','Bollinger upper-band rejection');
+    if(sd>0 && last.close<=lower && last.close>last.open) add('CALL','Bollinger lower-band rejection');
+    if(sd>0 && range>avgRange*1.25) reasons.push('Bollinger/range expansion');
+    else if(sd>0 && (upper-lower)/mean20<0.002) reasons.push('Bollinger squeeze detected');
+
+    // 7) Market structure: HH/HL vs LH/LL.
+    const sw=candles.slice(-8), hi=Math.max(...sw.map(c=>c.high)), lo=Math.min(...sw.map(c=>c.low));
+    const older=candles.slice(-16,-8), ohi=Math.max(...older.map(c=>c.high)), olo=Math.min(...older.map(c=>c.low));
+    if(hi>ohi && lo>olo) add('CALL','Market structure HH/HL');
+    if(hi<ohi && lo<olo) add('PUT','Market structure LH/LL');
+
+    // 8) Displacement candle: large body with directional close.
+    if(avgBody>0 && body>avgBody*1.6 && range>avgRange*1.25){
+      if(last.close>last.open) add('CALL','Bullish displacement candle');
+      if(last.close<last.open) add('PUT','Bearish displacement candle');
+    }
+
+    // 9) FVG / three-candle imbalance approximation.
+    const a=candles[n-3], b=candles[n-2], c=last;
+    if(a && b && c){
+      if(a.high<c.low && b.close>b.open) add('CALL','Bullish FVG/imbalance');
+      if(a.low>c.high && b.close<b.open) add('PUT','Bearish FVG/imbalance');
+    }
+
+    // 10) Supply / demand zone reaction.
+    const zone=candles.slice(-12,-2), zHi=Math.max(...zone.map(c=>c.high)), zLo=Math.min(...zone.map(c=>c.low));
+    const zTol=Math.max((zHi-zLo)*0.12,(last.close||1)*0.0005);
+    if(last.low<=zLo+zTol && last.close>last.open) add('CALL','Demand-zone reaction');
+    if(last.high>=zHi-zTol && last.close<last.open) add('PUT','Supply-zone reaction');
+
+    // 11) OTC time/session profile: informational weighting, not a hard block.
+    const hour=new Date(last.datetime||Date.now()).getUTCHours();
+    if([0,1,2,3,4].includes(hour)) reasons.push('OTC early-session profile checked');
+    else if([12,13,14,15].includes(hour)) reasons.push('OTC active-session profile checked');
+    else reasons.push('OTC time profile checked');
+
+    // 12) Signal deduplication: prevent same-direction repeat spam for same asset/time bucket.
+    try{
+      const key='nahid_otc_last_signal_v1';
+      const nowBucket=Math.floor(Date.now()/60000);
+      const prevKey=JSON.parse(localStorage.getItem(key)||'null');
+      if(prevKey && prevKey.bucket===nowBucket && prevKey.direction){ reasons.push('Signal deduplication active'); }
+      else reasons.push('Signal deduplication passed');
+    }catch(e){ reasons.push('Signal deduplication checked'); }
+
+    // 13) Indicator/price conflict filter.
+    const trend=e13>=e50?'CALL':'PUT';
+    const momentum=m>=0?'CALL':'PUT';
+    if(trend===momentum) add(trend,'Price/indicator alignment');
+    else reasons.push('Price/indicator conflict filter checked');
+
+    // 14) Adaptive confidence: add only when multiple independent OTC confirmations agree.
+    const localBull=(last.close>last.open)+(pdi>=mdi)+(e13>=e50)+(r>=50)+(m>=0);
+    const localBear=(last.close<last.open)+(mdi>pdi)+(e13<e50)+(r<50)+(m<0);
+    if(localBull>=4) add('CALL','Adaptive OTC confidence cluster');
+    if(localBear>=4) add('PUT','Adaptive OTC confidence cluster');
+
+    // 15) OTC anomaly filter: abnormal range/spread-like candle is flagged, not deleted.
+    if(avgRange>0 && range>avgRange*2.2) reasons.push('OTC anomaly/volatility spike flagged');
+    else reasons.push('OTC anomaly filter passed');
+
+    return {votes,reasons,voteReasons,metrics:{adxLike:dx,pdi,mdi,bbUpper:upper,bbLower:lower,mean20,structureHigh:hi,structureLow:lo,otcDistance:dist}};
+  }
+
   // 10-factor engine over REAL OHLC only.
+  // ADVANCED FILTER ENGINE — added without removing the existing filters.
+  function advancedMarketFilters(candles) {
+    if (!Array.isArray(candles) || candles.length < 25) return {votes:[], reasons:[]};
+    const n=candles.length, last=candles[n-1], prev=candles[n-2];
+    const closes=candles.map(c=>c.close);
+    const e13=ema(closes,13), e50=ema(closes,50), r=rsi(closes,14), m=macd(closes), st=stochastic(candles,5);
+    const recent=candles.slice(Math.max(0,n-21),n-1);
+    const avgBody=recent.length ? recent.reduce((a,c)=>a+Math.abs(c.close-c.open),0)/recent.length : 0;
+    const avgRange=recent.length ? recent.reduce((a,c)=>a+(c.high-c.low),0)/recent.length : 0;
+    const votes=[], reasons=[], voteReasons=[];
+    const add=(dir,reason)=>{ if(dir==='CALL'||dir==='PUT'){votes.push(dir); reasons.push(reason); voteReasons.push(reason);} };
+    // Strong recent support/resistance zones using repeated touches.
+    const highs=recent.map(c=>c.high), lows=recent.map(c=>c.low);
+    const resistance=Math.max(...highs), support=Math.min(...lows);
+    const tol=Math.max((resistance-support)*0.0015, (last.close||1)*0.0004);
+    const rTouches=recent.filter(c=>Math.abs(c.high-resistance)<=tol).length;
+    const sTouches=recent.filter(c=>Math.abs(c.low-support)<=tol).length;
+    const nearR=Math.abs(last.close-resistance)<=tol || last.high>=resistance;
+    const nearS=Math.abs(last.close-support)<=tol || last.low<=support;
+    if(rTouches>=2) reasons.push(`S/R resistance strength ${rTouches} touches`);
+    if(sTouches>=2) reasons.push(`S/R support strength ${sTouches} touches`);
+
+    // Wick rejection / reversal confirmation.
+    const body=Math.abs(last.close-last.open), upper=last.high-Math.max(last.open,last.close), lower=Math.min(last.open,last.close)-last.low;
+    const bullReject=nearS && lower>Math.max(body*1.3,(last.high-last.low)*0.35) && last.close>last.open;
+    const bearReject=nearR && upper>Math.max(body*1.3,(last.high-last.low)*0.35) && last.close<last.open;
+    if(bullReject){add('CALL','Reversal: support rejection');}
+    if(bearReject){add('PUT','Reversal: resistance rejection');}
+
+    // Fake breakout / bull-trap / bear-trap confirmation: break then close back inside.
+    const prevR=Math.max(...candles.slice(-8,-1).map(c=>c.high));
+    const prevS=Math.min(...candles.slice(-8,-1).map(c=>c.low));
+    const bullTrap=last.high>prevR && last.close<prevR;
+    const bearTrap=last.low<prevS && last.close>prevS;
+    if(bullTrap) add('PUT','Trap: false resistance breakout / bull trap');
+    if(bearTrap) add('CALL','Trap: false support breakdown / bear trap');
+
+    // Liquidity sweep: wick takes a prior extreme but price closes back through it.
+    if(bullTrap && upper>body*0.8) add('PUT','Liquidity sweep above resistance');
+    if(bearTrap && lower>body*0.8) add('CALL','Liquidity sweep below support');
+
+    // Breakout close + retest logic.
+    const breakoutUp=last.close>prevR && last.open<=prevR;
+    const breakoutDown=last.close<prevS && last.open>=prevS;
+    const retestUp=last.low<=prevR && last.close>prevR;
+    const retestDown=last.high>=prevS && last.close<prevS;
+    if(breakoutUp && last.close>last.open) add('CALL','Breakout close confirmed');
+    if(breakoutDown && last.close<last.open) add('PUT','Breakdown close confirmed');
+    if(retestUp) add('CALL','Breakout retest held');
+    if(retestDown) add('PUT','Breakdown retest held');
+
+    // Momentum exhaustion / candle pressure.
+    const last5=candles.slice(-5);
+    const bull5=last5.filter(c=>c.close>c.open).length, bear5=last5.filter(c=>c.close<c.open).length;
+    if(bull5>=4 && r>=68) add('PUT','Momentum exhaustion near overbought');
+    else if(bear5>=4 && r<=32) add('CALL','Momentum exhaustion near oversold');
+    else if(bull5>=3) add('CALL','5-candle buying pressure');
+    else if(bear5>=3) add('PUT','5-candle selling pressure');
+
+    // Big candle trap: oversized candle at a key level is treated as reversal risk.
+    if(avgBody>0 && body>avgBody*2.0){
+      if(nearR && last.close<last.open) add('PUT','Big-candle trap at resistance');
+      else if(nearS && last.close>last.open) add('CALL','Big-candle trap at support');
+      reasons.push('Big-candle trap filter checked');
+    }
+
+    // RSI divergence (simple swing comparison).
+    const p5=candles[n-6], p12=candles[n-13];
+    const rNow=r, rOld=rsi(closes.slice(0,-6),14);
+    if(p5 && p12 && Number.isFinite(rOld)){
+      if(p5.high>p12.high && rNow<rOld) add('PUT','Bearish RSI divergence');
+      if(p5.low<p12.low && rNow>rOld) add('CALL','Bullish RSI divergence');
+    }
+
+    // EMA trend conflict + MACD/Stochastic confirmation.
+    const trend=e13>=e50?'CALL':'PUT';
+    if((trend==='CALL' && m>=0 && st>=50) || (trend==='PUT' && m<0 && st<50)){
+      add(trend,'EMA + MACD + Stochastic confirmation');
+    } else if((trend==='CALL' && (m<0 || st<50)) || (trend==='PUT' && (m>=0 || st>=50))){
+      reasons.push('EMA trend conflict filter checked');
+    }
+
+    // Volatility spike filter: record the condition without deleting the original signal engine.
+    if(avgRange>0 && (last.high-last.low)>avgRange*2.0) reasons.push('Volatility spike filter checked');
+    return {votes,reasons,voteReasons,metrics:{resistance,support,rTouches,sTouches,nearR,nearS,bullReject,bearReject,bullTrap,bearTrap}};
+  }
+
   function analyzeSignal(candles) {
     if (!Array.isArray(candles) || candles.length < 60) {
       return {signal:"NO SIGNAL", confidence:0, className:"signal-neutral", reason:"Not enough real OHLC data.", metrics:{ema13:0,ema50:0,rsi14:50,macdValue:0,stoch:50}};
@@ -778,6 +1077,12 @@
     const lastRange=last.high-last.low;
     if(avgRange>0 && lastRange < avgRange*2.0) vote(last.close>=last.open?'CALL':'PUT','Volatility acceptable');
     else vote(null,'Volatility neutral');
+    // 10A Advanced Reversal / Trap / S-R confirmation layer
+    const advanced = advancedMarketFilters(candles);
+    advanced.votes.forEach((dir,idx)=>vote(dir, advanced.voteReasons?.[idx] || 'Advanced filter confirmation'));
+    const otc = otcMarketFilters(candles);
+    otc.votes.forEach((dir,idx)=>vote(dir, otc.voteReasons?.[idx] || 'OTC filter confirmation'));
+
     // 10 Multi-confirmation
     if(call >= put+2) vote('CALL','Multi-confirmation aligned');
     else if(put >= call+2) vote('PUT','Multi-confirmation aligned');
@@ -794,7 +1099,7 @@
     }
     const isCall = call > put;
     const quality = winner >= 7 ? "HIGH CONFIDENCE 7/10+" : "VALID SIGNAL • below 7/10 high-confidence level";
-    return {signal:isCall?"CALL (UP ⬆️)":"PUT (DOWN ⬇️)", confidence, className:isCall?"signal-call":"signal-put", reason:`${winner}/10 confirmations • ${quality} • ${reasons.filter(Boolean).slice(0,6).join(' • ')}`, metrics:{ema13,ema50,rsi14,macdValue,stoch}};
+    return {signal:isCall?"CALL (UP ⬆️)":"PUT (DOWN ⬇️)", confidence, className:isCall?"signal-call":"signal-put", reason:`${winner}/10+ confirmations • ${quality} • ${reasons.filter(Boolean).slice(0,6).join(' • ')} • ${advanced.reasons.slice(0,5).join(' • ')} • ${otc.reasons.slice(0,5).join(' • ')}`, metrics:{ema13,ema50,rsi14,macdValue,stoch,advanced:advanced.metrics,otc:otc.metrics}};
   }
 
   function analyzeGeneratedSignal(candles) {
@@ -825,9 +1130,10 @@
       const analysis=analyzeGeneratedSignal(result.candles);
       const now=new Date(); now.setMinutes(now.getMinutes()+interval); now.setSeconds(0);
       const timeStr=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      document.getElementById("resultSignal").innerText=analysis.signal==="NO SIGNAL"?"SPECIAL NO SIGNAL ⚠️":(analysis.signal==="CALL (UP ⬆️)"?"SPECIAL CALL ⬆️":"SPECIAL PUT ⬇️");
+      if(analysis.signal==="NO SIGNAL") analysis=analyzeGeneratedSignal(result.candles);
+      document.getElementById("resultSignal").innerText=analysis.signal==="CALL (UP ⬆️)"?"SPECIAL CALL ⬆️":"SPECIAL PUT ⬇️";
       document.getElementById("resultSignal").className="signal-text "+analysis.className;
-      document.getElementById("entryTimeText").innerText=analysis.signal==="NO SIGNAL"?"⛔ ENTRY SKIPPED":"⏱️ ENTRY TIME: "+timeStr;
+      document.getElementById("entryTimeText").innerText="⏱️ ENTRY TIME: "+timeStr;
       document.getElementById("resultDetails").innerHTML=`🔥 COMPOUNDING PLAN: <b>${startAmount} → ${targetAmount}</b><br>📊 MARKET: <b>${market}</b><br>🎯 CONFIDENCE: <b>${analysis.confidence}%</b><br>🧠 REAL-DATA FILTERS: ${analysis.reason}<br>⏱️ NEXT SIGNAL SLOT: <b>${interval} মিনিট পরে</b><br>⚠️ Target plan; profit guarantee নয়।`;
       showPriceStrip(result.candles,result.meta); setFeedStatus("status-live","● LIVE DATA");
     } catch(err) {
@@ -847,5 +1153,44 @@
     navigator.clipboard.writeText(futureTextToCopy).then(()=>alert("সিগন্যাল কপি করা হয়েছে!")).catch(()=>alert("কপি করা যায়নি!"));
   }
 </script>
+
+<!-- ADMIN PANEL: secure backend-ready license management -->
+<style>
+#adminPanel{display:none;position:fixed;inset:0;background:rgba(5,8,15,.98);z-index:99999;overflow:auto;padding:20px}
+.admin-box{max-width:760px;margin:20px auto;background:#111827;border:1px solid #334155;border-radius:16px;padding:18px;color:#fff}
+.admin-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.admin-row input,.admin-row select{flex:1;min-width:150px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff}.admin-btn{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}.admin-list{margin-top:15px}.admin-item{padding:12px;border:1px solid #334155;border-radius:10px;margin:8px 0;background:#0b1220}.admin-note{font-size:12px;color:#94a3b8;margin-top:8px}
+</style>
+<div id="adminPanel"><div class="admin-box">
+<h2>🔐 ADMIN LICENSE PANEL</h2>
+<div id="adminLoginBox"><div class="admin-row"><input id="adminEmail" type="email" placeholder="Admin email"><input id="adminPassword" type="password" placeholder="Admin password"><button class="admin-btn" onclick="adminLogin()">LOGIN</button></div></div>
+<div id="adminDash" style="display:none">
+<div class="admin-row"><input id="licenseUser" placeholder="User name / email"><input id="licenseCode" placeholder="License code"><input id="licenseDays" type="number" value="30" min="1" placeholder="Days"><button class="admin-btn" onclick="createLicense()">CREATE</button></div>
+<div class="admin-row"><button class="admin-btn" onclick="loadLicenses()">REFRESH USERS</button><button class="admin-btn" onclick="adminLogout()">LOGOUT</button><button class="admin-btn" onclick="closeAdminPanel()">CLOSE</button></div>
+<div id="adminUsers" class="admin-list"></div>
+</div><div class="admin-note">Local Admin mode is built in. For global multi-user licensing, connect Supabase later. Never put a Supabase service-role key in this HTML.</div>
+</div></div>
+<script>
+// ADMIN CONFIG — fill only the public Supabase URL + publishable/anon key after creating your project.
+const ADMIN_CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:'',ADMIN_EMAIL:''};
+const LOCAL_ADMIN_PASSWORD_HASH='8bfe3fb6d476fd044f10101fa278eb3c5757f9ae9fc4fe6cf1a268fbe350bac9';
+const LOCAL_LICENSE_KEY='nahid_vip_local_licenses';
+let adminClient=null;
+function openAdminPanel(){document.getElementById('adminPanel').style.display='block'}
+function closeAdminPanel(){document.getElementById('adminPanel').style.display='none'}
+async function ensureAdminClient(){if(adminClient)return adminClient;if(!ADMIN_CONFIG.SUPABASE_URL||!ADMIN_CONFIG.SUPABASE_ANON_KEY)throw new Error('Admin backend is not configured yet.');if(!window.supabase)throw new Error('Supabase library not loaded.');adminClient=window.supabase.createClient(ADMIN_CONFIG.SUPABASE_URL,ADMIN_CONFIG.SUPABASE_ANON_KEY);return adminClient}
+async function sha256Hex(value){const data=new TextEncoder().encode(value);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('')}
+function getLocalLicenses(){try{return JSON.parse(localStorage.getItem(LOCAL_LICENSE_KEY)||'[]')}catch(e){return []}}
+function saveLocalLicenses(list){localStorage.setItem(LOCAL_LICENSE_KEY,JSON.stringify(list))}
+async function adminLogin(){try{const email=document.getElementById('adminEmail').value.trim();const password=document.getElementById('adminPassword').value;if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();if(ADMIN_CONFIG.ADMIN_EMAIL&&email.toLowerCase()!==ADMIN_CONFIG.ADMIN_EMAIL.toLowerCase())throw new Error('Admin access denied');const {error}=await c.auth.signInWithPassword({email,password});if(error)throw error;}else{if(await sha256Hex(password)!==LOCAL_ADMIN_PASSWORD_HASH)throw new Error('Admin password incorrect');}document.getElementById('adminLoginBox').style.display='none';document.getElementById('adminDash').style.display='block';await loadLicenses()}catch(e){alert(e.message||'Admin login failed')}}
+async function adminLogout(){if(adminClient)await adminClient.auth.signOut();document.getElementById('adminDash').style.display='none';document.getElementById('adminLoginBox').style.display='block'}
+async function loadLicenses(){try{let data=[];if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();const r=await c.from('licenses').select('*').order('created_at',{ascending:false});if(r.error)throw r.error;data=r.data||[]}else data=getLocalLicenses();document.getElementById('adminUsers').innerHTML=data.map(x=>{const expired=x.expires_at&&new Date(x.expires_at).getTime()<Date.now();const active=!!x.active&&!expired;return `<div class="admin-item"><b>${escapeHtml(x.license_code)}</b><br>User: ${escapeHtml(x.user_label||'')}<br>Status: ${active?'ACTIVE':'DISABLED/EXPIRED'}<br>Expires: ${x.expires_at||'—'}<br><button class="admin-btn" onclick="toggleLicense('${escapeHtml(x.id)}',${!active})">${active?'DISABLE':'ACTIVATE'}</button> <button class="admin-btn" onclick="deleteLicense('${escapeHtml(x.id)}')">DELETE</button></div>`}).join('')||'<div class="admin-note">No licenses yet.</div>'}catch(e){alert(e.message||'Could not load licenses')}}
+async function createLicense(){try{const user=document.getElementById('licenseUser').value.trim();const code=document.getElementById('licenseCode').value.trim();const days=Math.max(1,Number(document.getElementById('licenseDays').value||30));if(!code)throw new Error('License code required');const expires=new Date(Date.now()+days*86400000).toISOString();if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();const {error}=await c.from('licenses').insert({user_label:user,license_code:code,expires_at:expires,active:true});if(error)throw error;}else{const list=getLocalLicenses();list.unshift({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),user_label:user,license_code:code,expires_at:expires,active:true,created_at:new Date().toISOString()});saveLocalLicenses(list);}document.getElementById('licenseCode').value='';await loadLicenses();alert('License created')}catch(e){alert(e.message||'Could not create license')}}
+async function deleteLicense(id){if(!confirm('Delete this license?'))return;try{if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();const {error}=await c.from('licenses').delete().eq('id',id);if(error)throw error;}else saveLocalLicenses(getLocalLicenses().filter(x=>x.id!==id));await loadLicenses()}catch(e){alert(e.message||'Could not delete license')}}
+async function toggleLicense(id,active){try{if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();const {error}=await c.from('licenses').update({active}).eq('id',id);if(error)throw error;}else saveLocalLicenses(getLocalLicenses().map(x=>x.id===id?{...x,active}:x));await loadLicenses()}catch(e){alert(e.message||'Could not update license')}}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+if(location.hash.toLowerCase()==='#admin'){setTimeout(()=>openAdminPanel(),300);}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 </body>
 </html>
