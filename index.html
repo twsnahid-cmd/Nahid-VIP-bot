@@ -960,10 +960,25 @@
 
       filteredSignals.sort(sortByEntry);
 
+      // Apply the selected Future Signal interval to the generated schedule.
+      // The API still supplies the asset/direction/accuracy, but the displayed
+      // entry times are scheduled from now at exactly the selected interval.
+      const futureIntervalMinutes = Math.max(1, parseInt(document.getElementById("signalIntervalSelect")?.value || "5", 10));
+      let scheduledSignals = filteredSignals.slice(0, requestedSignalCount);
+      if (scheduledSignals.length) {
+        const scheduleBase = new Date(Date.now() + futureIntervalMinutes * 60000);
+        scheduleBase.setSeconds(0, 0);
+        scheduledSignals = scheduledSignals.map((row, index) => ({
+          ...row,
+          _scheduledTime: new Date(scheduleBase.getTime() + index * futureIntervalMinutes * 60000)
+            .toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"})
+        }));
+      }
+
       let tableHtml = `<table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>SIGNAL</th><th>DURATION</th><th>MG</th><th>ACCURACY</th></tr>`;
       futureTextToCopy = `👑 NAHID VIP BOT - FUTURE SIGNALS\n----------------------------------\n`;
 
-      filteredSignals.forEach(row => {
+      scheduledSignals.forEach(row => {
         const direction = String(row.direction).toUpperCase();
         if(direction !== "CALL" && direction !== "PUT") return;
         const dir = direction === "CALL" ? "CALL ⬆️" : "PUT ⬇️";
@@ -971,8 +986,9 @@
         const duration = row.duration || "M1";
         const mg = row.martingale || "-";
         const accuracy = row.accuracy || "-";
-        tableHtml += `<tr><td><b>${row.time}</b></td><td>${asset}</td><td><b>${dir}</b></td><td>${duration}</td><td>${mg}</td><td>${accuracy}</td></tr>`;
-        futureTextToCopy += `⏱️ ${row.time} | ${asset} ➡️ ${dir} | ${duration} | ${mg} | ${accuracy}\n`;
+        const displayTime = row._scheduledTime || row.time;
+        tableHtml += `<tr><td><b>${displayTime}</b></td><td>${asset}</td><td><b>${dir}</b></td><td>${duration}</td><td>${mg}</td><td>${accuracy}</td></tr>`;
+        futureTextToCopy += `⏱️ ${displayTime} | ${asset} ➡️ ${dir} | ${duration} | ${mg} | ${accuracy}\n`;
       });
 
       tableHtml += `</table>`;
@@ -985,7 +1001,7 @@
       document.getElementById("resultSignal").innerText = "FUTURE SIGNALS READY";
       document.getElementById("resultSignal").className = "signal-text signal-call";
       document.getElementById("resultDetails").innerHTML = tableHtml +
-        `<div class="hint" style="margin-top:8px;">Provider: ${providerText} • ${filteredSignals.length}/${requestedSignalCount} signals loaded.${partialText}<br><span class="hint">🧪 ${backtestResult.note}${backtestResult.tested ? ` • tested: ${backtestResult.tested}, passed: ${backtestResult.passed}` : ""}</span></div>`;
+        `<div class="hint" style="margin-top:8px;">Provider: ${providerText} • ${scheduledSignals.length}/${requestedSignalCount} signals loaded • ${futureIntervalMinutes}-minute interval.${partialText}<br><span class="hint">🧪 ${backtestResult.note}${backtestResult.tested ? ` • tested: ${backtestResult.tested}, passed: ${backtestResult.passed}` : ""}</span></div>`;
       document.getElementById("copyBtn").style.display = "block";
       setFeedStatus("status-live", failed.length ? "● FUTURE API PARTIAL" : "● FUTURE API LIVE");
     } catch (err) {
@@ -999,13 +1015,14 @@
       // Keep the requested signal-count behavior even when the Future API is unavailable.
       // Selected markets are a pool; one market may contribute multiple fallback signals.
       const requestedSignalCount = Math.max(1, parseInt(document.getElementById("futureSignalCount")?.value || "10", 10));
+      const futureIntervalMinutes = Math.max(1, parseInt(document.getElementById("signalIntervalSelect")?.value || "5", 10));
       for(let index = 0; index < requestedSignalCount; index++) {
         const market = selectedMarkets[index % selectedMarkets.length];
         const demo = makeDemoCandles(100);
         const analysis = analyzeGeneratedSignal(demo);
         const isCall = analysis.signal === "CALL (UP ⬆️)";
         const direction = isCall ? "CALL ⬆️" : "PUT ⬇️";
-        const entry = new Date(Date.now() + (index + 1) * 60000);
+        const entry = new Date(Date.now() + (index + 1) * futureIntervalMinutes * 60000);
         entry.setSeconds(0, 0);
         const time = entry.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
         const asset = String(market).replace(/\s*\(OTC\)$/, "-OTC").replace(/\//g, "-");
@@ -1018,7 +1035,7 @@
       document.getElementById("resultSignal").innerText = "FUTURE SIGNALS READY";
       document.getElementById("resultSignal").className = "signal-text signal-call";
       document.getElementById("resultDetails").innerHTML = tableHtml +
-        `<div class="hint" style="margin-top:8px;">Future API unavailable — simulated fallback signals generated: ${requestedSignalCount}/${requestedSignalCount}.</div>`;
+        `<div class="hint" style="margin-top:8px;">Future API unavailable — simulated fallback signals generated: ${requestedSignalCount}/${requestedSignalCount} • ${futureIntervalMinutes}-minute interval.</div>`;
       document.getElementById("copyBtn").style.display = "block";
       setFeedStatus("status-off", "● SIMULATED FUTURE SIGNAL");
     }
