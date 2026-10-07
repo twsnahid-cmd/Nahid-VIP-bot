@@ -464,11 +464,19 @@
     try {
       const code = document.getElementById("licenseInput").value.trim();
       if (!code) throw new Error("লাইসেন্স কোড দিন");
-      const c = await ensureAdminClient();
-      const {data,error}=await c.from('licenses').select('id,active,expires_at').eq('license_code',code).maybeSingle();
-      if(error) throw error;
+
+      let data = null;
+      if (ADMIN_CONFIG.SUPABASE_URL && ADMIN_CONFIG.SUPABASE_ANON_KEY) {
+        const c = await ensureAdminClient();
+        const {data: remoteData,error}=await c.from('licenses').select('id,active,expires_at').eq('license_code',code).maybeSingle();
+        if(error) throw error;
+        data = remoteData;
+      } else {
+        data = getLocalLicenses().find(x => x.license_code === code) || null;
+      }
+
       if(!data || !data.active) throw new Error('লাইসেন্স নিষ্ক্রিয় বা পাওয়া যায়নি');
-      if(new Date(data.expires_at).getTime() < Date.now()) throw new Error('লাইসেন্সের মেয়াদ শেষ');
+      if(data.expires_at && new Date(data.expires_at).getTime() < Date.now()) throw new Error('লাইসেন্সের মেয়াদ শেষ');
       unlockBot();
     } catch(e) { alert(e.message || 'লাইসেন্স যাচাই ব্যর্থ'); }
   }
@@ -746,17 +754,48 @@
     document.getElementById("resultSignal").innerText = "LOADING FUTURE API...";
     document.getElementById("resultSignal").className = "signal-text signal-neutral";
 
-    const futureAssets = selectedMarkets.map(m => m.replace(/\s*\(OTC\)$/, "_otc").replace(/\//g, "")).join(",");
-    const FUTURE_API = `https://quotexotc-futureapi.poghen-dx.workers.dev/pairs=${encodeURIComponent(futureAssets)}?start_time=00:00&end_time=23:59`;
+    // The Future API uses symbols such as USDINR_otc and USDNGN_otc.
+    // Keep the existing UI labels unchanged and only normalize the API request symbols here.
+    const futurePairMap = {
+      "INR/USD (OTC)":"USDINR_otc",
+      "INR/USD":"USDINR_otc"
+    };
+    const futureAssets = selectedMarkets.map(m => {
+      if(futurePairMap[m]) return futurePairMap[m];
+      return m.replace(/\s*\(OTC\)$/, "_otc").replace(/\//g, "");
+    });
+
+    async function fetchFuturePairList(pairs) {
+      const pairString = pairs.join(",");
+      const url = `https://quotexotc-futureapi.poghen-dx.workers.dev/pairs=${pairString}?start_time=00:00&end_time=23:59`;
+      const response = await fetch(url, { cache: "no-store" });
+      if(!response.ok) throw new Error(`Future API request failed (${response.status})`);
+      const data = await response.json();
+      if(data.status !== "success" || !Array.isArray(data.signals)) throw new Error("Invalid Future API response");
+      return data;
+    }
 
     try {
-      const response = await fetch(FUTURE_API, { cache: "no-store" });
-      if (!response.ok) throw new Error("Future API request failed");
-      const data = await response.json();
-      if (data.status !== "success" || !Array.isArray(data.signals)) throw new Error("Invalid Future API response");
+      let data;
+      try {
+        // First request all selected markets together, as supported by the API.
+        data = await fetchFuturePairList(futureAssets);
+      } catch(batchErr) {
+        // If one selected market is unavailable, keep the working markets instead of failing the whole schedule.
+        const results = await Promise.allSettled(futureAssets.map(pair => fetchFuturePairList([pair])));
+        const successful = results
+          .filter(r => r.status === "fulfilled")
+          .map(r => r.value);
+        if(!successful.length) throw batchErr;
+        data = {
+          status: "success",
+          info: successful.find(x => x.info)?.info || {},
+          signals: successful.flatMap(x => Array.isArray(x.signals) ? x.signals : [])
+        };
+      }
 
       const signals = data.signals.filter(s => s && s.asset && s.time && s.direction);
-      if (!signals.length) throw new Error("No future signals returned");
+      if(!signals.length) throw new Error("No future signals returned");
 
       let tableHtml = `<table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>SIGNAL</th><th>DURATION</th><th>MG</th><th>ACCURACY</th></tr>`;
       futureTextToCopy = `👑 NAHID VIP BOT - FUTURE SIGNALS\n----------------------------------\n`;
@@ -779,6 +818,7 @@
       document.getElementById("copyBtn").style.display = "block";
       setFeedStatus("status-live", "● FUTURE API LIVE");
     } catch (err) {
+      console.error("Future API error:", err);
       document.getElementById("resultSignal").innerText = "FUTURE API ERROR";
       document.getElementById("resultSignal").className = "signal-text signal-neutral";
       document.getElementById("resultDetails").innerHTML =
@@ -1171,7 +1211,7 @@
 </div></div>
 <script>
 // ADMIN CONFIG — fill only the public Supabase URL + publishable/anon key after creating your project.
-const ADMIN_CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:'',ADMIN_EMAIL:''};
+const ADMIN_CONFIG={SUPABASE_URL:'https://fnwnfoufykqstdcfeefj.supabase.co',SUPABASE_ANON_KEY:'sb_publishable_DS99kl2XLiLgw0lYXf8_Kg_gLCPWkd_',ADMIN_EMAIL:'twsnahid@gmail.com'};
 const LOCAL_ADMIN_PASSWORD_HASH='8bfe3fb6d476fd044f10101fa278eb3c5757f9ae9fc4fe6cf1a268fbe350bac9';
 const LOCAL_LICENSE_KEY='nahid_vip_local_licenses';
 let adminClient=null;
