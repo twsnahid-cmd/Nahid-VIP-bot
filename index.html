@@ -68,9 +68,6 @@
     <label for="passcode">VIP পাসওয়ার্ড দিন:</label>
     <input type="password" id="passcode" placeholder="Enter VIP Password" />
     <button class="btn" onclick="checkAuth()">আনলক করুন</button>
-    <div style="margin-top:10px;text-align:center;color:#94a3b8;font-size:12px">অথবা লাইসেন্স দিয়ে প্রবেশ করুন</div>
-    <input type="text" id="licenseInput" placeholder="Enter License Code" autocomplete="off" />
-    <button class="btn" onclick="checkLicense()">লাইসেন্স যাচাই</button>
   </div>
 
   <div id="app-screen" style="display: none;">
@@ -448,37 +445,13 @@
   let lastRealCandles = null;
   let lastRealMeta = null;
 
-  function unlockBot() {
-    document.getElementById("auth-screen").style.display = "none";
-    document.getElementById("app-screen").style.display = "block";
-    loadSavedApiKey();
-  }
-
   function checkAuth() {
     const input = document.getElementById("passcode").value;
-    if (input === PASSCODE) unlockBot();
-    else alert("ভুল পাসওয়ার্ড!");
-  }
-
-  async function checkLicense() {
-    try {
-      const code = document.getElementById("licenseInput").value.trim();
-      if (!code) throw new Error("লাইসেন্স কোড দিন");
-
-      let data = null;
-      if (ADMIN_CONFIG.SUPABASE_URL && ADMIN_CONFIG.SUPABASE_ANON_KEY) {
-        const c = await ensureAdminClient();
-        const {data: remoteData,error}=await c.from('licenses').select('id,active,expires_at').eq('license_code',code).maybeSingle();
-        if(error) throw error;
-        data = remoteData;
-      } else {
-        data = getLocalLicenses().find(x => x.license_code === code) || null;
-      }
-
-      if(!data || !data.active) throw new Error('লাইসেন্স নিষ্ক্রিয় বা পাওয়া যায়নি');
-      if(data.expires_at && new Date(data.expires_at).getTime() < Date.now()) throw new Error('লাইসেন্সের মেয়াদ শেষ');
-      unlockBot();
-    } catch(e) { alert(e.message || 'লাইসেন্স যাচাই ব্যর্থ'); }
+    if (input === PASSCODE) {
+      document.getElementById("auth-screen").style.display = "none";
+      document.getElementById("app-screen").style.display = "block";
+      loadSavedApiKey();
+    } else alert("ভুল পাসওয়ার্ড!");
   }
 
   function switchTab(tabName, ev) {
@@ -754,48 +727,17 @@
     document.getElementById("resultSignal").innerText = "LOADING FUTURE API...";
     document.getElementById("resultSignal").className = "signal-text signal-neutral";
 
-    // The Future API uses symbols such as USDINR_otc and USDNGN_otc.
-    // Keep the existing UI labels unchanged and only normalize the API request symbols here.
-    const futurePairMap = {
-      "INR/USD (OTC)":"USDINR_otc",
-      "INR/USD":"USDINR_otc"
-    };
-    const futureAssets = selectedMarkets.map(m => {
-      if(futurePairMap[m]) return futurePairMap[m];
-      return m.replace(/\s*\(OTC\)$/, "_otc").replace(/\//g, "");
-    });
-
-    async function fetchFuturePairList(pairs) {
-      const pairString = pairs.join(",");
-      const url = `https://quotexotc-futureapi.poghen-dx.workers.dev/pairs=${pairString}?start_time=00:00&end_time=23:59`;
-      const response = await fetch(url, { cache: "no-store" });
-      if(!response.ok) throw new Error(`Future API request failed (${response.status})`);
-      const data = await response.json();
-      if(data.status !== "success" || !Array.isArray(data.signals)) throw new Error("Invalid Future API response");
-      return data;
-    }
+    const futureAssets = selectedMarkets.map(m => m.replace(/\s*\(OTC\)$/, "_otc").replace(/\//g, "")).join(",");
+    const FUTURE_API = `https://quotexotc-futureapi.poghen-dx.workers.dev/pairs=${encodeURIComponent(futureAssets)}?start_time=00:00&end_time=23:59`;
 
     try {
-      let data;
-      try {
-        // First request all selected markets together, as supported by the API.
-        data = await fetchFuturePairList(futureAssets);
-      } catch(batchErr) {
-        // If one selected market is unavailable, keep the working markets instead of failing the whole schedule.
-        const results = await Promise.allSettled(futureAssets.map(pair => fetchFuturePairList([pair])));
-        const successful = results
-          .filter(r => r.status === "fulfilled")
-          .map(r => r.value);
-        if(!successful.length) throw batchErr;
-        data = {
-          status: "success",
-          info: successful.find(x => x.info)?.info || {},
-          signals: successful.flatMap(x => Array.isArray(x.signals) ? x.signals : [])
-        };
-      }
+      const response = await fetch(FUTURE_API, { cache: "no-store" });
+      if (!response.ok) throw new Error("Future API request failed");
+      const data = await response.json();
+      if (data.status !== "success" || !Array.isArray(data.signals)) throw new Error("Invalid Future API response");
 
       const signals = data.signals.filter(s => s && s.asset && s.time && s.direction);
-      if(!signals.length) throw new Error("No future signals returned");
+      if (!signals.length) throw new Error("No future signals returned");
 
       let tableHtml = `<table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>SIGNAL</th><th>DURATION</th><th>MG</th><th>ACCURACY</th></tr>`;
       futureTextToCopy = `👑 NAHID VIP BOT - FUTURE SIGNALS\n----------------------------------\n`;
@@ -818,7 +760,6 @@
       document.getElementById("copyBtn").style.display = "block";
       setFeedStatus("status-live", "● FUTURE API LIVE");
     } catch (err) {
-      console.error("Future API error:", err);
       document.getElementById("resultSignal").innerText = "FUTURE API ERROR";
       document.getElementById("resultSignal").className = "signal-text signal-neutral";
       document.getElementById("resultDetails").innerHTML =
@@ -1194,41 +1135,151 @@
   }
 </script>
 
-<!-- ADMIN PANEL: secure backend-ready license management -->
+<!-- NAHID VIP BOT — INTEGRATED ADMIN LICENSE PANEL -->
 <style>
 #adminPanel{display:none;position:fixed;inset:0;background:rgba(5,8,15,.98);z-index:99999;overflow:auto;padding:20px}
 .admin-box{max-width:760px;margin:20px auto;background:#111827;border:1px solid #334155;border-radius:16px;padding:18px;color:#fff}
-.admin-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.admin-row input,.admin-row select{flex:1;min-width:150px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff}.admin-btn{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}.admin-list{margin-top:15px}.admin-item{padding:12px;border:1px solid #334155;border-radius:10px;margin:8px 0;background:#0b1220}.admin-note{font-size:12px;color:#94a3b8;margin-top:8px}
+.admin-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.admin-row input{flex:1;min-width:150px;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff}
+.admin-btn{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
+.admin-list{margin-top:15px}
+.admin-item{padding:12px;border:1px solid #334155;border-radius:10px;margin:8px 0;background:#0b1220}
+.admin-note{font-size:12px;color:#94a3b8;margin-top:8px}
 </style>
-<div id="adminPanel"><div class="admin-box">
-<h2>🔐 ADMIN LICENSE PANEL</h2>
-<div id="adminLoginBox"><div class="admin-row"><input id="adminEmail" type="email" placeholder="Admin email"><input id="adminPassword" type="password" placeholder="Admin password"><button class="admin-btn" onclick="adminLogin()">LOGIN</button></div></div>
-<div id="adminDash" style="display:none">
-<div class="admin-row"><input id="licenseUser" placeholder="User name / email"><input id="licenseCode" placeholder="License code"><input id="licenseDays" type="number" value="30" min="1" placeholder="Days"><button class="admin-btn" onclick="createLicense()">CREATE</button></div>
-<div class="admin-row"><button class="admin-btn" onclick="loadLicenses()">REFRESH USERS</button><button class="admin-btn" onclick="adminLogout()">LOGOUT</button><button class="admin-btn" onclick="closeAdminPanel()">CLOSE</button></div>
-<div id="adminUsers" class="admin-list"></div>
-</div><div class="admin-note">Local Admin mode is built in. For global multi-user licensing, connect Supabase later. Never put a Supabase service-role key in this HTML.</div>
-</div></div>
+
+<div id="adminPanel">
+  <div class="admin-box">
+    <h2>🔐 ADMIN LICENSE PANEL</h2>
+    <div id="adminLoginBox">
+      <div class="admin-row">
+        <input id="adminEmail" type="email" placeholder="Admin email">
+        <input id="adminPassword" type="password" placeholder="Admin password">
+        <button class="admin-btn" onclick="adminLogin()">LOGIN</button>
+      </div>
+      <div class="admin-note">Only the configured Supabase admin account can manage licenses.</div>
+    </div>
+
+    <div id="adminDash" style="display:none">
+      <div class="admin-row">
+        <input id="licenseUser" placeholder="User name / email">
+        <input id="licenseCode" placeholder="License code">
+        <input id="licenseDays" type="number" value="30" min="1" placeholder="Days">
+        <button class="admin-btn" onclick="createLicense()">CREATE</button>
+      </div>
+      <div class="admin-row">
+        <button class="admin-btn" onclick="loadLicenses()">REFRESH USERS</button>
+        <button class="admin-btn" onclick="adminLogout()">LOGOUT</button>
+        <button class="admin-btn" onclick="closeAdminPanel()">CLOSE</button>
+      </div>
+      <div id="adminUsers" class="admin-list"></div>
+    </div>
+  </div>
+</div>
+
 <script>
-// ADMIN CONFIG — fill only the public Supabase URL + publishable/anon key after creating your project.
-const ADMIN_CONFIG={SUPABASE_URL:'https://fnwnfoufykqstdcfeefj.supabase.co',SUPABASE_ANON_KEY:'sb_publishable_DS99kl2XLiLgw0lYXf8_Kg_gLCPWkd_',ADMIN_EMAIL:'twsnahid@gmail.com'};
-const LOCAL_ADMIN_PASSWORD_HASH='8bfe3fb6d476fd044f10101fa278eb3c5757f9ae9fc4fe6cf1a268fbe350bac9';
-const LOCAL_LICENSE_KEY='nahid_vip_local_licenses';
+const ADMIN_CONFIG={
+  SUPABASE_URL:'https://fnwnfoufykqstdcfeefj.supabase.co',
+  SUPABASE_ANON_KEY:'sb_publishable_DS99kl2XLiLgw0lYXf8_Kg_gLCPWkd_',
+  ADMIN_EMAIL:'twsna​hid@gmail.com'
+};
+ADMIN_CONFIG.ADMIN_EMAIL=ADMIN_CONFIG.ADMIN_EMAIL.replace(/\u200b/g,'');
+
 let adminClient=null;
-function openAdminPanel(){document.getElementById('adminPanel').style.display='block'}
-function closeAdminPanel(){document.getElementById('adminPanel').style.display='none'}
-async function ensureAdminClient(){if(adminClient)return adminClient;if(!ADMIN_CONFIG.SUPABASE_URL||!ADMIN_CONFIG.SUPABASE_ANON_KEY)throw new Error('Admin backend is not configured yet.');if(!window.supabase)throw new Error('Supabase library not loaded.');adminClient=window.supabase.createClient(ADMIN_CONFIG.SUPABASE_URL,ADMIN_CONFIG.SUPABASE_ANON_KEY);return adminClient}
-async function sha256Hex(value){const data=new TextEncoder().encode(value);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('')}
-function getLocalLicenses(){try{return JSON.parse(localStorage.getItem(LOCAL_LICENSE_KEY)||'[]')}catch(e){return []}}
-function saveLocalLicenses(list){localStorage.setItem(LOCAL_LICENSE_KEY,JSON.stringify(list))}
-async function adminLogin(){try{const email=document.getElementById('adminEmail').value.trim();const password=document.getElementById('adminPassword').value;if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();if(ADMIN_CONFIG.ADMIN_EMAIL&&email.toLowerCase()!==ADMIN_CONFIG.ADMIN_EMAIL.toLowerCase())throw new Error('Admin access denied');const {error}=await c.auth.signInWithPassword({email,password});if(error)throw error;}else{if(await sha256Hex(password)!==LOCAL_ADMIN_PASSWORD_HASH)throw new Error('Admin password incorrect');}document.getElementById('adminLoginBox').style.display='none';document.getElementById('adminDash').style.display='block';await loadLicenses()}catch(e){alert(e.message||'Admin login failed')}}
-async function adminLogout(){if(adminClient)await adminClient.auth.signOut();document.getElementById('adminDash').style.display='none';document.getElementById('adminLoginBox').style.display='block'}
-async function loadLicenses(){try{let data=[];if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();const r=await c.from('licenses').select('*').order('created_at',{ascending:false});if(r.error)throw r.error;data=r.data||[]}else data=getLocalLicenses();document.getElementById('adminUsers').innerHTML=data.map(x=>{const expired=x.expires_at&&new Date(x.expires_at).getTime()<Date.now();const active=!!x.active&&!expired;return `<div class="admin-item"><b>${escapeHtml(x.license_code)}</b><br>User: ${escapeHtml(x.user_label||'')}<br>Status: ${active?'ACTIVE':'DISABLED/EXPIRED'}<br>Expires: ${x.expires_at||'—'}<br><button class="admin-btn" onclick="toggleLicense('${escapeHtml(x.id)}',${!active})">${active?'DISABLE':'ACTIVATE'}</button> <button class="admin-btn" onclick="deleteLicense('${escapeHtml(x.id)}')">DELETE</button></div>`}).join('')||'<div class="admin-note">No licenses yet.</div>'}catch(e){alert(e.message||'Could not load licenses')}}
-async function createLicense(){try{const user=document.getElementById('licenseUser').value.trim();const code=document.getElementById('licenseCode').value.trim();const days=Math.max(1,Number(document.getElementById('licenseDays').value||30));if(!code)throw new Error('License code required');const expires=new Date(Date.now()+days*86400000).toISOString();if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();const {error}=await c.from('licenses').insert({user_label:user,license_code:code,expires_at:expires,active:true});if(error)throw error;}else{const list=getLocalLicenses();list.unshift({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),user_label:user,license_code:code,expires_at:expires,active:true,created_at:new Date().toISOString()});saveLocalLicenses(list);}document.getElementById('licenseCode').value='';await loadLicenses();alert('License created')}catch(e){alert(e.message||'Could not create license')}}
-async function deleteLicense(id){if(!confirm('Delete this license?'))return;try{if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();const {error}=await c.from('licenses').delete().eq('id',id);if(error)throw error;}else saveLocalLicenses(getLocalLicenses().filter(x=>x.id!==id));await loadLicenses()}catch(e){alert(e.message||'Could not delete license')}}
-async function toggleLicense(id,active){try{if(ADMIN_CONFIG.SUPABASE_URL&&ADMIN_CONFIG.SUPABASE_ANON_KEY){const c=await ensureAdminClient();const {error}=await c.from('licenses').update({active}).eq('id',id);if(error)throw error;}else saveLocalLicenses(getLocalLicenses().map(x=>x.id===id?{...x,active}:x));await loadLicenses()}catch(e){alert(e.message||'Could not update license')}}
-function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-if(location.hash.toLowerCase()==='#admin'){setTimeout(()=>openAdminPanel(),300);}
+
+function openAdminPanel(){
+  const panel=document.getElementById('adminPanel');
+  if(panel) panel.style.display='block';
+}
+function closeAdminPanel(){
+  const panel=document.getElementById('adminPanel');
+  if(panel) panel.style.display='none';
+}
+async function ensureAdminClient(){
+  if(adminClient) return adminClient;
+  if(!window.supabase) throw new Error('Supabase library not loaded. Please refresh.');
+  adminClient=window.supabase.createClient(
+    ADMIN_CONFIG.SUPABASE_URL,ADMIN_CONFIG.SUPABASE_ANON_KEY
+  );
+  return adminClient;
+}
+async function adminLogin(){
+  try{
+    const email=document.getElementById('adminEmail').value.trim();
+    const password=document.getElementById('adminPassword').value;
+    if(!email||!password) throw new Error('Admin email and password required.');
+    if(email.toLowerCase()!==ADMIN_CONFIG.ADMIN_EMAIL.toLowerCase()) throw new Error('Admin access denied.');
+    const c=await ensureAdminClient();
+    const {error}=await c.auth.signInWithPassword({email,password});
+    if(error) throw error;
+    document.getElementById('adminLoginBox').style.display='none';
+    document.getElementById('adminDash').style.display='block';
+    await loadLicenses();
+  }catch(e){alert(e.message||'Admin login failed');}
+}
+async function adminLogout(){
+  try{if(adminClient) await adminClient.auth.signOut();}catch(e){}
+  document.getElementById('adminDash').style.display='none';
+  document.getElementById('adminLoginBox').style.display='block';
+  document.getElementById('adminPassword').value='';
+}
+async function loadLicenses(){
+  try{
+    const c=await ensureAdminClient();
+    const r=await c.from('licenses').select('*').order('created_at',{ascending:false});
+    if(r.error) throw r.error;
+    const data=r.data||[];
+    document.getElementById('adminUsers').innerHTML=data.map(x=>{
+      const expired=x.expires_at&&new Date(x.expires_at).getTime()<Date.now();
+      const active=!!x.active&&!expired;
+      return `<div class="admin-item"><b>${escapeAdminHtml(x.license_code)}</b><br>
+      User: ${escapeAdminHtml(x.user_label||'')}<br>
+      Status: ${active?'ACTIVE':'DISABLED/EXPIRED'}<br>
+      Expires: ${x.expires_at||'—'}<br>
+      <button class="admin-btn" onclick="toggleLicense('${escapeAdminHtml(x.id)}',${!active})">${active?'DISABLE':'ACTIVATE'}</button>
+      <button class="admin-btn" onclick="deleteLicense('${escapeAdminHtml(x.id)}')">DELETE</button></div>`;
+    }).join('')||'<div class="admin-note">No licenses yet.</div>';
+  }catch(e){alert(e.message||'Could not load licenses');}
+}
+async function createLicense(){
+  try{
+    const user=document.getElementById('licenseUser').value.trim();
+    const code=document.getElementById('licenseCode').value.trim();
+    const days=Math.max(1,Number(document.getElementById('licenseDays').value||30));
+    if(!code) throw new Error('License code required.');
+    const expires=new Date(Date.now()+days*86400000).toISOString();
+    const c=await ensureAdminClient();
+    const {error}=await c.from('licenses').insert({user_label:user,license_code:code,expires_at:expires,active:true});
+    if(error) throw error;
+    document.getElementById('licenseCode').value='';
+    await loadLicenses();
+    alert('License created');
+  }catch(e){alert(e.message||'Could not create license');}
+}
+async function deleteLicense(id){
+  if(!confirm('Delete this license?')) return;
+  try{
+    const c=await ensureAdminClient();
+    const {error}=await c.from('licenses').delete().eq('id',id);
+    if(error) throw error;
+    await loadLicenses();
+  }catch(e){alert(e.message||'Could not delete license');}
+}
+async function toggleLicense(id,active){
+  try{
+    const c=await ensureAdminClient();
+    const {error}=await c.from('licenses').update({active}).eq('id',id);
+    if(error) throw error;
+    await loadLicenses();
+  }catch(e){alert(e.message||'Could not update license');}
+}
+function escapeAdminHtml(v){
+  return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function openAdminFromHash(){
+  if(location.hash.toLowerCase()==='#admin') setTimeout(openAdminPanel,300);
+}
+window.addEventListener('hashchange',openAdminFromHash);
+openAdminFromHash();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
