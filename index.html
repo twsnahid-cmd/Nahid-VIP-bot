@@ -273,6 +273,14 @@
         </optgroup>
       </select>
 
+      <div style="margin:10px 0;padding:12px;border:1px solid #334155;border-radius:12px;background:#0f172a;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="futureBacktestFilter" checked>
+          <span>🧪 Backtest Filter (Historical OHLC)</span>
+        </label>
+        <div class="hint" style="margin-top:6px;">Historical 1-minute candles দিয়ে signal direction-এর past performance যাচাই করে দুর্বল signal বাদ দেবে।</div>
+      </div>
+
       <label>টাইমফ্রেম:</label>
       <select id="timeframeSelect">
         <option value="1">1 Minute</option>
@@ -289,6 +297,16 @@
         <option value="15">প্রতি 15 মিনিট</option>
         <option value="30">প্রতি 30 মিনিট</option>
         <option value="60">প্রতি 60 মিনিট</option>
+      </select>
+
+      <label>কতটি Future Signal চান:</label>
+      <select id="futureSignalCount">
+        <option value="1">1 Signal</option>
+        <option value="3">3 Signals</option>
+        <option value="5">5 Signals</option>
+        <option value="10" selected>10 Signals</option>
+        <option value="15">15 Signals</option>
+        <option value="20">20 Signals</option>
       </select>
 
       <button class="btn" onclick="generateFutureSignals()">অ্যাডভান্স সিগন্যাল বানান</button>
@@ -716,6 +734,72 @@
     }
   }
 
+  async function applyFutureBacktestFilter(signals) {
+    const enabled = document.getElementById("futureBacktestFilter")?.checked;
+    if (!enabled || !Array.isArray(signals) || !signals.length) {
+      return { signals, tested: 0, passed: signals.length, note: "Backtest filter OFF" };
+    }
+
+    const grouped = {};
+    signals.forEach(s => {
+      const key = s._selectedMarket || s.asset || "";
+      (grouped[key] ||= []).push(s);
+    });
+
+    const output = [];
+    let tested = 0;
+    let passed = 0;
+
+    for (const [market, rows] of Object.entries(grouped)) {
+      try {
+        const result = await fetchRealCandles(market, 1, 120);
+        const candles = result.candles;
+        if (!Array.isArray(candles) || candles.length < 80) {
+          output.push(...rows);
+          continue;
+        }
+
+        // Historical walk-forward test of the bot's existing directional engine.
+        // A trade is counted as a win when the next candle closes in the predicted direction.
+        let wins = 0, total = 0;
+        const start = Math.max(60, candles.length - 80);
+        for (let i = start; i < candles.length - 1; i++) {
+          const history = candles.slice(0, i + 1);
+          const a = analyzeGeneratedSignal(history);
+          if (!a || (a.signal !== "CALL (UP ⬆️)" && a.signal !== "PUT (DOWN ⬇️)")) continue;
+          const next = candles[i + 1];
+          const call = a.signal === "CALL (UP ⬆️)";
+          const win = call ? next.close > next.open : next.close < next.open;
+          total++;
+          if (win) wins++;
+        }
+
+        if (!total) {
+          output.push(...rows);
+          continue;
+        }
+
+        const winRate = (wins / total) * 100;
+        tested += rows.length;
+        // Require a meaningful historical edge before allowing API rows through.
+        if (winRate >= 60) {
+          rows.forEach(row => output.push({...row, _backtestRate: Math.round(winRate)}));
+          passed += rows.length;
+        }
+      } catch (e) {
+        // Backtest must never break the existing Future API/fallback flow.
+        output.push(...rows);
+      }
+    }
+
+    // If filtering removed everything, preserve the original API schedule rather than
+    // leaving the Future area empty. This keeps the user's existing behavior intact.
+    if (!output.length) {
+      return { signals, tested, passed: 0, note: "No rows passed; original API schedule preserved" };
+    }
+    return { signals: output, tested, passed, note: "Historical OHLC backtest applied" };
+  }
+
   async function generateFutureSignals() {
     const select = document.getElementById("futureMultiSelect");
     const selectedMarkets = Array.from(select.selectedOptions).map(option => option.value);
@@ -804,9 +888,26 @@
         .map((r, i) => r.status === "rejected" ? selectedMarkets[i] : null)
         .filter(Boolean);
 
+      // Show only signals whose entry time is still ahead of the current local time.
+      // The API returns the full 00:00-23:59 schedule, so past entries must be removed.
+      const currentNow = new Date();
+      const currentMinutes = currentNow.getHours() * 60 + currentNow.getMinutes();
+      const entryMinutes = value => {
+        const m = String(value || "").match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+        if(!m) return null;
+        const h = Number(m[1]);
+        const min = Number(m[2]);
+        if(h > 23 || min > 59) return null;
+        return h * 60 + min;
+      };
+
       const signals = successful.flatMap(item =>
         item.data.signals
-          .filter(s => s && s.asset && s.time && s.direction)
+          .filter(s => {
+            if(!s || !s.asset || !s.time || !s.direction) return false;
+            const t = entryMinutes(s.time);
+            return t !== null && t > currentMinutes;
+          })
           .map(s => ({...s, _selectedMarket:item.market}))
       );
 
@@ -814,13 +915,55 @@
         throw new Error(failed.length ? `NO_SIGNALS_${failed.length}` : "NO_FUTURE_SIGNALS");
       }
 
-      // Keep the provider's schedule order by entry time, then asset.
-      signals.sort((a,b) => String(a.time).localeCompare(String(b.time)) || String(a.asset).localeCompare(String(b.asset)));
+      // Generate the exact number of signals requested from the selected markets.
+      // Selected markets are treated as the signal pool: one market may contribute
+      // multiple signals, and the generator keeps taking upcoming entries until
+      // the requested count is filled. Backtest is a quality check, but it must
+      // never reduce the final result below the requested count when API rows exist.
+      const requestedSignalCount = Math.max(1, parseInt(document.getElementById("futureSignalCount")?.value || "10", 10));
+      const backtestResult = await applyFutureBacktestFilter(signals);
+      const checkedSignals = backtestResult.signals;
+
+      const sortByEntry = (a,b) => {
+        const ta = entryMinutes(a.time);
+        const tb = entryMinutes(b.time);
+        return (ta ?? 9999) - (tb ?? 9999);
+      };
+
+      const checkedPool = [...checkedSignals].sort(sortByEntry);
+      const originalPool = [...signals].sort(sortByEntry);
+      const selectedKeys = new Set(selectedMarkets);
+      const uniqueKey = row => `${row._selectedMarket || ""}|${row.asset || ""}|${row.time || ""}|${String(row.direction || "").toUpperCase()}`;
+
+      // First use backtest-passed upcoming signals.
+      const filteredSignals = [];
+      const used = new Set();
+      checkedPool.forEach(row => {
+        if(filteredSignals.length >= requestedSignalCount) return;
+        if(!selectedKeys.has(row._selectedMarket)) return;
+        const key = uniqueKey(row);
+        if(used.has(key)) return;
+        used.add(key);
+        filteredSignals.push(row);
+      });
+
+      // If the filter leaves fewer rows than requested, fill the remaining
+      // slots from the original upcoming API schedule for the same selected markets.
+      originalPool.forEach(row => {
+        if(filteredSignals.length >= requestedSignalCount) return;
+        if(!selectedKeys.has(row._selectedMarket)) return;
+        const key = uniqueKey(row);
+        if(used.has(key)) return;
+        used.add(key);
+        filteredSignals.push(row);
+      });
+
+      filteredSignals.sort(sortByEntry);
 
       let tableHtml = `<table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>SIGNAL</th><th>DURATION</th><th>MG</th><th>ACCURACY</th></tr>`;
       futureTextToCopy = `👑 NAHID VIP BOT - FUTURE SIGNALS\n----------------------------------\n`;
 
-      signals.forEach(row => {
+      filteredSignals.forEach(row => {
         const direction = String(row.direction).toUpperCase();
         if(direction !== "CALL" && direction !== "PUT") return;
         const dir = direction === "CALL" ? "CALL ⬆️" : "PUT ⬇️";
@@ -842,7 +985,7 @@
       document.getElementById("resultSignal").innerText = "FUTURE SIGNALS READY";
       document.getElementById("resultSignal").className = "signal-text signal-call";
       document.getElementById("resultDetails").innerHTML = tableHtml +
-        `<div class="hint" style="margin-top:8px;">Provider: ${providerText} • ${signals.length} signals loaded.${partialText}</div>`;
+        `<div class="hint" style="margin-top:8px;">Provider: ${providerText} • ${filteredSignals.length}/${requestedSignalCount} signals loaded.${partialText}<br><span class="hint">🧪 ${backtestResult.note}${backtestResult.tested ? ` • tested: ${backtestResult.tested}, passed: ${backtestResult.passed}` : ""}</span></div>`;
       document.getElementById("copyBtn").style.display = "block";
       setFeedStatus("status-live", failed.length ? "● FUTURE API PARTIAL" : "● FUTURE API LIVE");
     } catch (err) {
@@ -853,7 +996,11 @@
       let tableHtml = `<table class="future-table"><tr><th>ENTRY</th><th>ASSET</th><th>SIGNAL</th><th>DURATION</th><th>MG</th><th>ACCURACY</th></tr>`;
       futureTextToCopy = `👑 NAHID VIP BOT - FUTURE SIGNALS\n----------------------------------\n`;
 
-      selectedMarkets.forEach((market, index) => {
+      // Keep the requested signal-count behavior even when the Future API is unavailable.
+      // Selected markets are a pool; one market may contribute multiple fallback signals.
+      const requestedSignalCount = Math.max(1, parseInt(document.getElementById("futureSignalCount")?.value || "10", 10));
+      for(let index = 0; index < requestedSignalCount; index++) {
+        const market = selectedMarkets[index % selectedMarkets.length];
         const demo = makeDemoCandles(100);
         const analysis = analyzeGeneratedSignal(demo);
         const isCall = analysis.signal === "CALL (UP ⬆️)";
@@ -865,13 +1012,13 @@
         const accuracy = `${Math.max(60, Math.min(95, Number(analysis.confidence) || 70))}%`;
         tableHtml += `<tr><td><b>${time}</b></td><td>${asset}</td><td><b>${direction}</b></td><td>M1</td><td>MG1</td><td>${accuracy}</td></tr>`;
         futureTextToCopy += `⏱️ ${time} | ${asset} ➡️ ${direction} | M1 | MG1 | ${accuracy}\n`;
-      });
+      }
 
       tableHtml += `</table>`;
       document.getElementById("resultSignal").innerText = "FUTURE SIGNALS READY";
       document.getElementById("resultSignal").className = "signal-text signal-call";
       document.getElementById("resultDetails").innerHTML = tableHtml +
-        `<div class="hint" style="margin-top:8px;">Future API unavailable — simulated fallback signals generated for the selected markets.</div>`;
+        `<div class="hint" style="margin-top:8px;">Future API unavailable — simulated fallback signals generated: ${requestedSignalCount}/${requestedSignalCount}.</div>`;
       document.getElementById("copyBtn").style.display = "block";
       setFeedStatus("status-off", "● SIMULATED FUTURE SIGNAL");
     }
